@@ -1,8 +1,10 @@
 use std::process;
 
+use anyhow::{anyhow, Result};
+
 use crate::device::make_remote_app_with_name;
-use crate::errors::*;
 use crate::ios::xcode;
+use crate::project;
 use crate::project::Project;
 use crate::Build;
 use crate::BuildBundle;
@@ -14,7 +16,6 @@ pub fn make_ios_app(
     runnable: &Runnable,
     app_id: &str,
 ) -> Result<BuildBundle> {
-    use crate::project;
     let build_bundle = make_remote_app_with_name(project, build, runnable, Some("Dinghy.app"))?;
     project::rec_copy(&runnable.exe, build_bundle.bundle_dir.join("Dinghy"), false)?;
     let magic = process::Command::new("file")
@@ -29,7 +30,8 @@ pub fn make_ios_app(
     let target = magic
         .split(' ')
         .last()
-        .ok_or_else(|| anyhow!("empty magic"))?;
+        .ok_or_else(|| anyhow!("empty magic"))?
+        .trim();
     xcode::add_plist_to_app(&build_bundle, target, app_id)?;
     Ok(build_bundle)
 }

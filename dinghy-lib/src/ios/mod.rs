@@ -1,33 +1,19 @@
-use libc::c_void;
 use std::{mem, ptr, sync, thread};
+
+use anyhow::{anyhow, Context, Result};
+use libc::c_void;
+use log::info;
+
+use crate::{Compiler, Device, Platform, PlatformManager};
 
 pub use self::device::{physical::IosDevice, simulator::IosSimDevice};
 use self::mobiledevice_sys::*;
 pub use self::platform::IosPlatform;
-use crate::{Compiler, Device, Platform, PlatformManager, Result};
 
 mod device;
 mod mobiledevice_sys;
 mod platform;
 mod xcode;
-
-use anyhow::Context;
-
-#[derive(Debug, Clone)]
-pub struct SignatureSettings {
-    pub identity: SigningIdentity,
-    pub file: String,
-    pub entitlements: String,
-    pub name: String,
-    pub profile: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct SigningIdentity {
-    pub id: String,
-    pub name: String,
-    pub team: String,
-}
 
 pub struct IosManager {
     compiler: sync::Arc<Compiler>,

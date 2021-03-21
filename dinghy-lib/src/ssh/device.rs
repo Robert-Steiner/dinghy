@@ -1,6 +1,15 @@
+use std::fmt;
+use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+
+use anyhow::{bail, Context, Result};
+use log::{debug, info, log_enabled, trace};
+
 use crate::config::SshDeviceConfiguration;
 use crate::device::make_remote_app;
-use crate::errors::*;
 use crate::host::HostPlatform;
 use crate::platform::regular_platform::RegularPlatform;
 use crate::project::Project;
@@ -10,12 +19,6 @@ use crate::BuildBundle;
 use crate::Device;
 use crate::DeviceCompatibility;
 use crate::Runnable;
-use std::fmt;
-use std::fmt::Formatter;
-use std::fmt::{Debug, Display};
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
 
 pub struct SshDevice {
     pub id: String,
@@ -96,7 +99,7 @@ impl SshDevice {
         if let Some(port) = self.conf.port {
             command.arg("-e").arg(&*format!("ssh -p {}", port));
         };
-        if !log_enabled!(::log::Level::Debug) {
+        if !log_enabled!(log::Level::Debug) {
             command.stdout(::std::process::Stdio::null());
             command.stderr(::std::process::Stdio::null());
         }

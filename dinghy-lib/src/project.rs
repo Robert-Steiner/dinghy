@@ -1,11 +1,3 @@
-use crate::config::dinghy_config;
-use crate::config::Configuration;
-use crate::utils::copy_and_sync_file;
-use crate::Platform;
-use crate::Result;
-use crate::Runnable;
-use cargo::core::compiler::CompileKind;
-use ignore::WalkBuilder;
 use std::env::current_dir;
 use std::fs;
 use std::fs::File;
@@ -13,6 +5,17 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use anyhow::{anyhow, Result};
+use cargo::core::compiler::CompileKind;
+use ignore::WalkBuilder;
+use log::{debug, trace, warn};
+
+use crate::config::dinghy_config;
+use crate::config::Configuration;
+use crate::utils::copy_and_sync_file;
+use crate::Platform;
+use crate::Runnable;
 
 #[derive(Debug)]
 pub struct Project {
@@ -33,7 +36,9 @@ impl Project {
     }
 
     pub fn overlay_work_dir(&self, platform: &dyn Platform) -> Result<PathBuf> {
-        Ok(self.target_dir(&platform.as_cargo_kind())?.join(platform.rustc_triple()))
+        Ok(self
+            .target_dir(&platform.as_cargo_kind())?
+            .join(platform.rustc_triple()))
     }
 
     pub fn target_dir(&self, platform: &CompileKind) -> Result<PathBuf> {

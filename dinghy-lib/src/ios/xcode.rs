@@ -1,34 +1,52 @@
-use super::{SignatureSettings, SigningIdentity};
-use crate::errors::*;
 use std::io::Write;
 use std::{fs, io, process};
 
+use anyhow::{anyhow, bail, Context, Result};
+use log::{debug, trace};
+use plist;
+use serde::Serialize;
+
 use crate::BuildBundle;
 
+#[derive(Debug, Clone)]
+pub struct SignatureSettings {
+    pub identity: SigningIdentity,
+    pub file: String,
+    pub entitlements: String,
+    pub name: String,
+    pub profile: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SigningIdentity {
+    pub id: String,
+    pub name: String,
+    pub team: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[allow(non_snake_case)]
+pub struct AppPlist<'a> {
+    CFBundleExecutable: &'static str,
+    CFBundleIdentifier: &'a str,
+    UIRequiredDeviceCapabilities: Vec<&'a str>,
+    CFBundleVersion: &'a str,
+    CFBundleShortVersionString: &'a str,
+}
+
 pub fn add_plist_to_app(bundle: &BuildBundle, arch: &str, app_bundle_id: &str) -> Result<()> {
-    let mut plist = fs::File::create(bundle.bundle_dir.join("Info.plist"))?;
-    writeln!(plist, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
-    writeln!(
+    let plist = fs::File::create(bundle.bundle_dir.join("Info.plist"))?;
+    plist::to_writer_xml(
         plist,
-        r#"<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">"#
-    )?;
-    writeln!(plist, r#"<plist version="1.0"><dict>"#)?;
-    writeln!(
-        plist,
-        "<key>CFBundleExecutable</key><string>Dinghy</string>",
-    )?;
-    writeln!(
-        plist,
-        "<key>CFBundleIdentifier</key><string>{}</string>",
-        app_bundle_id
-    )?;
-    writeln!(plist, "<key>UIRequiredDeviceCapabilities</key>")?;
-    writeln!(plist, "<array><string>{}</string></array>", arch)?;
-    writeln!(plist, "<key>CFBundleVersion</key>")?;
-    writeln!(plist, "<string>{}</string>", arch)?;
-    writeln!(plist, "<key>CFBundleShortVersionString</key>")?;
-    writeln!(plist, "<string>{}</string>", arch)?;
-    writeln!(plist, r#"</dict></plist>"#)?;
+        &AppPlist {
+            CFBundleExecutable: "Dinghy",
+            CFBundleIdentifier: app_bundle_id,
+            UIRequiredDeviceCapabilities: vec![arch],
+            CFBundleVersion: "1",
+            CFBundleShortVersionString: "1.0",
+        },
+    )
+    .map_err(|err| anyhow!(err))
     /*
     let app_name = app_bundle_id.split(".").last().unwrap();
     let app_path = app_path.as_ref().join(format!("{}.app", app_name));
@@ -63,7 +81,6 @@ pub fn add_plist_to_app(bundle: &BuildBundle, arch: &str, app_bundle_id: &str) -
     project.rec_copy(&source, &app_path, false)?;
     project.copy_test_data(&app_path)?;
     */
-    Ok(())
 }
 
 pub fn sign_app(bundle: &BuildBundle, settings: &SignatureSettings) -> Result<()> {

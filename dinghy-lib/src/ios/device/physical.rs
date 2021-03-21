@@ -3,14 +3,16 @@ use std::{fmt, path::PathBuf};
 use std::{fmt::Display, ptr};
 use std::{mem, process};
 
+use anyhow::{anyhow, bail, Result};
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::data::CFData;
 use core_foundation::number::CFNumber;
 use core_foundation::string::CFString;
 use core_foundation_sys::number::kCFBooleanTrue;
+use log::{debug, error};
+use plist::Value;
 
-use crate::errors::*;
 use crate::ios::mobiledevice_sys::*;
 use crate::ios::xcode;
 use crate::ios::IosPlatform;
@@ -28,7 +30,7 @@ pub struct IosDevice {
     pub id: String,
     pub name: String,
     ptr: *const am_device,
-    arch_cpu: &'static str,
+    arch_cpu: CpuArch,
     rustc_triple: String,
 }
 
@@ -37,25 +39,29 @@ unsafe impl Send for IosDevice {}
 impl IosDevice {
     pub fn new(ptr: *const am_device) -> Result<IosDevice> {
         let _session = ensure_session(ptr)?;
+
         let name = match device_read_value(ptr, "DeviceName")? {
             Some(Value::String(s)) => s,
             x => bail!("DeviceName should have been a string, was {:?}", x),
         };
-        let cpu = match device_read_value(ptr, "CPUArchitecture")? {
-            Some(Value::String(ref v)) if v == "arm64" || v == "arm64e" => "aarch64",
-            _ => "armv7",
+
+        let arch_cpu = match device_read_value(ptr, "CPUArchitecture")? {
+            Some(Value::String(ref v)) if v == "arm64" || v == "arm64e" => CpuArch::Aarch64,
+            _ => CpuArch::Armv7,
         };
+
         let id = if let Value::String(id) = rustify(unsafe { AMDeviceCopyDeviceIdentifier(ptr) })? {
             id
         } else {
             bail!("unexpected id format")
         };
+
         Ok(IosDevice {
             ptr,
             name,
             id,
-            arch_cpu: cpu,
-            rustc_triple: format!("{}-apple-ios", cpu),
+            arch_cpu: arch_cpu.clone(),
+            rustc_triple: format!("{}-apple-ios", arch_cpu),
         })
     }
 
@@ -143,13 +149,10 @@ fn run_ios_deploy(args: &[&str], envs: &[&str], bundle_dir: &PathBuf) -> Result<
 
 impl Display for IosDevice {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        Ok(fmt.write_str(
-            format!(
-                "IosDevice {{ \"id\": \"{}\", \"name\": {}, \"arch_cpu\": {} }}",
-                self.id, self.name, self.arch_cpu
-            )
-            .as_str(),
-        )?)
+        fmt.write_fmt(format_args!(
+            "IosDevice {{ \"id\": \"{}\", \"name\": {}, \"arch_cpu\": {} }}",
+            self.id, self.name, self.arch_cpu
+        ))
     }
 }
 
@@ -226,14 +229,6 @@ fn mk_result(rv: i32) -> Result<()> {
     }
 }
 
-#[derive(Clone, Debug)]
-enum Value {
-    String(String),
-    Data(Vec<u8>),
-    I64(i64),
-    Boolean(bool),
-}
-
 fn device_read_value(dev: *const am_device, key: &str) -> Result<Option<Value>> {
     unsafe {
         let key = CFString::new(key);
@@ -263,7 +258,7 @@ fn rustify(raw: CFTypeRef) -> Result<Value> {
             let value: CFNumber =
                 TCFType::wrap_under_get_rule(raw as *const core_foundation::number::__CFNumber);
             if let Some(i) = value.to_i64() {
-                return Ok(Value::I64(i));
+                return Ok(Value::Integer(i.into()));
             }
         }
         if cftype.type_of() == CFBoolean::type_id() {
@@ -271,5 +266,26 @@ fn rustify(raw: CFTypeRef) -> Result<Value> {
         }
         cftype.show();
         bail!("unknown value")
+    }
+}
+
+#[derive(Debug, Clone)]
+enum CpuArch {
+    Aarch64,
+    Armv7,
+}
+
+impl CpuArch {
+    fn as_str(&self) -> &'static str {
+        match self {
+            CpuArch::Aarch64 => "aarch64",
+            CpuArch::Armv7 => "armv7",
+        }
+    }
+}
+
+impl Display for CpuArch {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        fmt.write_str(self.as_str())
     }
 }

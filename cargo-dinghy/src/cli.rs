@@ -1,11 +1,12 @@
-use clap::App;
+use std::ffi::OsString;
+
 use clap::Arg;
 use clap::ArgGroup;
 use clap::ArgMatches;
 use clap::SubCommand;
+use clap::{crate_version, App};
 use dinghy_lib::compiler::CompileMode;
 use dinghy_lib::BuildArgs;
-use std::ffi::OsString;
 
 pub struct CargoDinghyCli {}
 

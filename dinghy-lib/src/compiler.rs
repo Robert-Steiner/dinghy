@@ -1,12 +1,18 @@
-extern crate cargo;
+use std::{collections::HashSet, io::{Read, Write}};
+use std::env;
+use std::env::current_dir;
+use std::ffi::OsString;
+use std::fs;
+use std::fs::File;
+use std::iter::FromIterator;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
 
-use crate::utils::arg_as_string_vec;
-use crate::utils::copy_and_sync_file;
-use crate::utils::is_library;
-use crate::Build;
-use crate::BuildArgs;
-use crate::Result;
-use crate::Runnable;
+use anyhow::Context;
+use anyhow::{anyhow, bail, Result};
 use cargo::core::compiler as CargoCoreCompiler;
 use cargo::core::compiler::Compilation;
 pub use cargo::core::compiler::CompileMode;
@@ -24,22 +30,15 @@ use cargo::util::interning::InternedString;
 use clap::ArgMatches;
 use dinghy_build::build_env::target_env_from_triple;
 use itertools::Itertools;
-use std::collections::HashSet;
-use std::env;
-use std::env::current_dir;
-use std::ffi::OsString;
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
-use std::iter::FromIterator;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
+use log::{debug, trace};
 use walkdir::WalkDir;
 
-use anyhow::Context;
+use crate::utils::arg_as_string_vec;
+use crate::utils::copy_and_sync_file;
+use crate::utils::is_library;
+use crate::Build;
+use crate::BuildArgs;
+use crate::Runnable;
 
 use crate::Platform;
 

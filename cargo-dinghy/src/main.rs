@@ -1,27 +1,21 @@
-#[macro_use]
-extern crate clap;
-extern crate dinghy_lib;
-extern crate env_logger;
-#[macro_use]
-extern crate log;
+use std::env;
+use std::env::current_dir;
+use std::sync::Arc;
 
-use crate::cli::CargoDinghyCli;
+use anyhow::{anyhow, bail, Result};
 use clap::ArgMatches;
 use dinghy_lib::compiler::Compiler;
 use dinghy_lib::config::dinghy_config;
-use dinghy_lib::errors::*;
-use dinghy_lib::itertools::Itertools;
 use dinghy_lib::project::Project;
 use dinghy_lib::utils::arg_as_string_vec;
 use dinghy_lib::Build;
 use dinghy_lib::Device;
 use dinghy_lib::Dinghy;
 use dinghy_lib::Platform;
-use std::env;
-use std::env::current_dir;
-use std::sync::Arc;
+use itertools::Itertools;
+use log::{debug, error, info};
 
-
+use crate::cli::CargoDinghyCli;
 
 mod cli;
 

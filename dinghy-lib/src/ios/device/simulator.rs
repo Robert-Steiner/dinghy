@@ -5,7 +5,10 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
-use crate::errors::*;
+use anyhow::{anyhow, bail, Result};
+use log::debug;
+use tinytemplate::TinyTemplate;
+
 use crate::ios::IosPlatform;
 use crate::project::Project;
 use crate::Build;
@@ -103,9 +106,9 @@ impl Device for IosSimDevice {
         args: &[&str],
         envs: &[&str],
     ) -> Result<Vec<BuildBundle>> {
-        let mut build_bundles = vec![];
-        for runnable in &build.runnables {
-            let build_bundle = self.install_app(&project, &build, &runnable)?;
+        let mut build_bundles = Vec::with_capacity(build.runnables.len());
+        for runnable in build.runnables.iter() {
+            let build_bundle = self.install_app(project, build, runnable)?;
             launch_app(&self, args, envs)?;
             build_bundles.push(build_bundle);
         }
@@ -115,13 +118,10 @@ impl Device for IosSimDevice {
 
 impl Display for IosSimDevice {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        Ok(fmt.write_str(
-            format!(
-                "IosSimDevice {{ \"id\": \"{}\", \"name\": {}, \"os\": {} }}",
-                self.id, self.name, self.os
-            )
-            .as_str(),
-        )?)
+        fmt.write_fmt(format_args!(
+            "IosSimDevice {{ \"id\": \"{}\", \"name\": {}, \"os\": {} }}",
+            self.id, self.name, self.os
+        ))
     }
 }
 
@@ -235,23 +235,38 @@ fn launch_lldb_simulator(
         let helper_py = helper_py.replace("ENV_VAR_PLACEHOLDER", &envs.join("\", \""));
         fs::File::create(&python_lldb_support)?.write_fmt(format_args!("{}", &helper_py))?;
         let mut script = fs::File::create(&lldb_script_filename)?;
-        writeln!(script, "platform select ios-simulator")?;
-        writeln!(script, "target create {}", installed)?;
-        writeln!(script, "script pass")?;
-        writeln!(script, "command script import {:?}", python_lldb_support)?;
-        writeln!(
-            script,
-            "command script add -s synchronous -f helpers.start start"
-        )?;
-        writeln!(
-            script,
-            "command script add -f helpers.connect_command connect"
-        )?;
-        writeln!(script, "connect connect://{}", dev.id)?;
-        if !debugger {
-            writeln!(script, "start {}", args.join(" "))?;
-            writeln!(script, "quit")?;
-        }
+
+        let mut tt = TinyTemplate::new();
+        tt.add_template("lldb_script", TEMPLATE)?;
+        let context = Context {
+            installed: installed.to_string(),
+            python_lldb_support: python_lldb_support.to_string_lossy().to_string(),
+            debugger,
+            id: dev.id.clone(),
+            args: args.join(" "),
+        };
+        let rendered = tt.render("lldb_script", &context)?;
+        script.write_all(rendered.as_bytes())?;
+
+        // std::thread::sleep(std::time::Duration::from_secs(1223423));
+
+        // writeln!(script, "platform select ios-simulator")?;
+        // writeln!(script, "target create {}", installed)?;
+        // writeln!(script, "script pass")?;
+        // writeln!(script, "command script import {:?}", python_lldb_support)?;
+        // writeln!(
+        //     script,
+        //     "command script add -s synchronous -f helpers.start start"
+        // )?;
+        // writeln!(
+        //     script,
+        //     "command script add -f helpers.connect_command connect"
+        // )?;
+        // writeln!(script, "connect connect://{}", dev.id)?;
+        // if !debugger {
+        //     writeln!(script, "start {}", args.join(" "))?;
+        //     writeln!(script, "quit")?;
+        // }
     }
 
     let stat = Command::new("xcrun")
@@ -266,3 +281,28 @@ fn launch_lldb_simulator(
         bail!("LLDB returned error code {:?}", stat.code())
     }
 }
+
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct Context {
+    installed: String,
+    python_lldb_support: String,
+    debugger: bool,
+    id: String,
+    args: String,
+}
+
+static TEMPLATE: &'static str = r#"
+platform select ios-simulator
+target create  {installed}
+script pass
+command script import {python_lldb_support}
+command script add -s synchronous -f helpers.start start
+command script add -f helpers.connect_command connect
+connect connect://{id}
+{{ if debugger }}
+start {args}
+quit
+{{ endif }}
+"#;

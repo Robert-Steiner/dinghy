@@ -1,12 +1,14 @@
+use std::{env, fs, path, process, sync};
+
+use anyhow::{anyhow, bail, Context};
+use log::debug;
+
 use crate::config::PlatformConfiguration;
 use crate::platform::regular_platform::RegularPlatform;
 use crate::toolchain::ToolchainConfig;
 use crate::{Compiler, Device, Platform, PlatformManager, Result};
-use std::{env, fs, path, process, sync};
 
 pub use self::device::AndroidDevice;
-
-use anyhow::Context;
 
 mod device;
 

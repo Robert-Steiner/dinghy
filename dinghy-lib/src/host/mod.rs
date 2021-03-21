@@ -1,13 +1,14 @@
-use crate::{
-    Compiler, Configuration, Device, Platform, PlatformConfiguration, PlatformManager, Result,
-};
 use std::sync;
 
-mod device;
-mod platform;
+use anyhow::Result;
+
+use crate::{Compiler, Configuration, Device, Platform, PlatformConfiguration, PlatformManager};
 
 pub use self::device::HostDevice;
 pub use self::platform::HostPlatform;
+
+mod device;
+mod platform;
 
 pub struct HostManager {
     compiler: sync::Arc<Compiler>,

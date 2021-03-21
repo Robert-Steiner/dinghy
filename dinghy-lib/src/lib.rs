@@ -1,53 +1,8 @@
-#![type_length_limit = "2149570"]
-#[macro_use]
-extern crate anyhow;
-extern crate atty;
-pub extern crate cargo;
-extern crate clap;
-#[cfg(target_os = "macos")]
-extern crate core_foundation;
-#[cfg(target_os = "macos")]
-extern crate core_foundation_sys;
-extern crate dinghy_build;
-extern crate dirs;
-extern crate filetime;
-extern crate ignore;
-pub extern crate itertools;
-extern crate json;
-#[cfg(target_os = "macos")]
-extern crate libc;
-#[macro_use]
-extern crate log;
-extern crate plist;
-extern crate regex;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate shell_escape;
-#[cfg(target_os = "macos")]
-extern crate tempdir;
-extern crate toml;
-extern crate walkdir;
-extern crate which;
+use std::fmt::Display;
+use std::{path, sync};
 
-mod android;
-pub mod compiler;
-pub mod config;
-pub mod device;
-pub mod errors;
-mod host;
-#[cfg(target_os = "macos")]
-mod ios;
-pub mod overlay;
-pub mod platform;
-pub mod project;
-mod script;
-mod ssh;
-mod toolchain;
-pub mod utils;
-
-pub use crate::compiler::Compiler;
-pub use crate::config::Configuration;
+use anyhow::{anyhow, Result};
+use cargo::core::compiler::CompileKind;
 
 use crate::compiler::CompileMode;
 use crate::config::PlatformConfiguration;
@@ -55,11 +10,25 @@ use crate::config::PlatformConfiguration;
 use crate::ios::IosManager;
 use crate::platform::regular_platform::RegularPlatform;
 use crate::project::Project;
-use cargo::core::compiler::CompileKind;
-use std::fmt::Display;
-use std::{path, sync};
 
-use crate::errors::Result;
+mod android;
+mod host;
+#[cfg(target_os = "macos")]
+mod ios;
+mod script;
+mod ssh;
+mod toolchain;
+
+pub mod compiler;
+pub mod config;
+pub mod device;
+pub mod overlay;
+pub mod platform;
+pub mod project;
+pub mod utils;
+
+pub use crate::compiler::Compiler;
+pub use crate::config::Configuration;
 
 pub struct Dinghy {
     devices: Vec<sync::Arc<Box<dyn Device>>>,

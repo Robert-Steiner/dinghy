@@ -1,6 +1,12 @@
-use crate::config::ScriptDeviceConfiguration;
-use crate::*;
 use std::{fmt, fs, process};
+
+use anyhow::{anyhow, bail, Result};
+use log::trace;
+
+use crate::{
+    config::ScriptDeviceConfiguration, platform::regular_platform::RegularPlatform,
+    project::Project, Build, BuildBundle, Device, DeviceCompatibility,
+};
 
 #[derive(Debug)]
 pub struct ScriptDevice {
@@ -111,7 +117,7 @@ impl DeviceCompatibility for ScriptDevice {
     }
 }
 
-impl Display for ScriptDevice {
+impl fmt::Display for ScriptDevice {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}", self.id)
     }

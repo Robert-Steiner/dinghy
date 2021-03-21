@@ -1,9 +1,5 @@
-#![allow(non_camel_case_types,dead_code)]
-extern crate core_foundation;
-extern crate core_foundation_sys;
-
-extern crate libc;
-use libc::*;
+#![allow(non_camel_case_types, dead_code)]
+use libc::{c_char, c_int, c_uint, c_void};
 
 use core_foundation::dictionary::CFDictionaryRef;
 use core_foundation::string::CFStringRef;
@@ -50,6 +46,7 @@ pub type am_device_notification_callback =
     extern "C" fn(*mut am_device_notification_callback_info, *mut c_void);
 
 pub type am_device_mount_callback = extern "C" fn(CFDictionaryRef, *mut c_void);
+
 #[link(name = "MobileDevice", kind = "framework")]
 extern "C" {
     pub fn AMDeviceNotificationSubscribe(
@@ -59,17 +56,23 @@ extern "C" {
         dn_unknown3: *const c_void,
         notification: *mut *const am_device_notification,
     ) -> c_int;
+
     pub fn AMDeviceCopyValue(
         device: *const am_device,
         domain: CFStringRef,
         cfstring: CFStringRef,
     ) -> *const c_void;
+
     pub fn AMDeviceConnect(device: *const am_device) -> c_int;
+
     pub fn AMDeviceDisconnect(device: *const am_device) -> c_int;
 
     pub fn AMDeviceIsPaired(device: *const am_device) -> c_int;
+
     pub fn AMDeviceValidatePairing(device: *const am_device) -> c_int;
+
     pub fn AMDeviceStartSession(device: *const am_device) -> c_int;
+
     pub fn AMDeviceStopSession(device: *const am_device) -> c_int;
 
     pub fn AMDeviceMountImage(
@@ -103,6 +106,7 @@ extern "C" {
     ) -> c_int;
 
     pub fn AMDeviceCopyDeviceIdentifier(device: *const am_device) -> *const c_void;
+
     pub fn AMDeviceSecureInstallApplication(
         zero: c_int,
         device: *const am_device,
@@ -111,6 +115,7 @@ extern "C" {
         callback: *const c_void,
         cbarg: *const c_void,
     ) -> c_int;
+
     pub fn AMDeviceSecureTransferPath(
         zero: c_int,
         device: *const am_device,

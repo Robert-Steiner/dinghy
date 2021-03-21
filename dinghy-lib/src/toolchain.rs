@@ -1,4 +1,10 @@
-use crate::errors::*;
+use std::io::Write;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
+use std::{env, fs, path};
+
+use anyhow::{anyhow, Result};
 use cargo::util::important_paths::find_root_manifest_for_wd;
 use dinghy_build::build_env::append_path_to_env;
 use dinghy_build::build_env::append_path_to_target_env;
@@ -6,11 +12,7 @@ use dinghy_build::build_env::envify;
 use dinghy_build::build_env::set_env;
 use dinghy_build::build_env::set_target_env;
 use itertools::Itertools;
-use std::io::Write;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
-use std::{env, fs, path};
+use log::trace;
 use walkdir::WalkDir;
 
 #[cfg(not(target_os = "windows"))]

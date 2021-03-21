@@ -193,10 +193,12 @@ dependencies = [
 name = "cargo-dinghy"
 version = "0.4.62-pre"
 dependencies = [
+ "anyhow",
  "clap",
  "dinghy-lib",
  "env_logger",
  "error-chain",
+ "itertools",
  "log",
  "openssl-sys",
 ]
@@ -422,6 +424,7 @@ dependencies = [
  "shellexpand",
  "tempdir",
  "tempfile",
+ "tinytemplate",
  "toml",
  "url",
  "walkdir",
@@ -1504,6 +1507,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8018d24e04c95ac8790716a5987d0fec4f8b27249ffa0f7d33f1369bdfb88cbd"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "tinytemplate"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
