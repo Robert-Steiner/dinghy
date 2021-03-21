@@ -20,7 +20,7 @@ impl PlatformManager for AndroidManager {
         let result = process::Command::new(&self.adb).arg("devices").output()?;
         let mut devices = vec![];
         let device_regex = ::regex::Regex::new(r#"^(\S+)\tdevice\r?$"#)?;
-        for line in String::from_utf8(result.stdout)?.split("\n").skip(1) {
+        for line in String::from_utf8(result.stdout)?.split('\n').skip(1) {
             if let Some(caps) = device_regex.captures(line) {
                 let d = AndroidDevice::from_id(self.adb.clone(), &caps[1])?;
                 debug!(
@@ -38,7 +38,7 @@ impl PlatformManager for AndroidManager {
             debug!("Android NDK: {:?}", ndk);
             let version = ndk_version(&ndk)?;
             let major = version
-                .split(".")
+                .split('.')
                 .next()
                 .ok_or_else(|| anyhow!("Invalid version found for ndk {:?}", &ndk))?;
             let major: usize = major
@@ -75,9 +75,8 @@ impl PlatformManager for AndroidManager {
                         let entry = entry?;
                         if entry.file_type()?.is_dir() {
                             let folder_name = entry.file_name().into_string().unwrap();
-                            match folder_name.parse::<u32>() {
-                                Ok(_) => api_levels.push(folder_name),
-                                Err(_) => {}
+                            if let Ok(_) = folder_name.parse::<u32>() {
+                                api_levels.push(folder_name)
                             }
                         }
                     }
@@ -122,7 +121,7 @@ impl PlatformManager for AndroidManager {
                 return Ok(platforms);
             }
         }
-        return Ok(vec![]);
+        Ok(vec![])
     }
 }
 
@@ -200,7 +199,7 @@ fn ndk_version(ndk: &path::Path) -> Result<String> {
         )
     })?;
     let revision_line = props
-        .split("\n")
+        .split('\n')
         .find(|l| l.starts_with("Pkg.Revision"))
         .with_context(|| {
             format!(
@@ -208,20 +207,17 @@ fn ndk_version(ndk: &path::Path) -> Result<String> {
                 sources_prop_file
             )
         })?;
-    Ok(revision_line.split(" ").last().unwrap().to_string())
+    Ok(revision_line.split(' ').last().unwrap().to_string())
 }
 
 fn adb() -> Result<path::PathBuf> {
     fn try_out(command: &path::Path) -> bool {
-        match process::Command::new(command)
+        process::Command::new(command)
             .arg("--version")
             .stdout(process::Stdio::null())
             .stderr(process::Stdio::null())
             .status()
-        {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+            .is_ok()
     }
     if let Ok(adb) = env::var("DINGHY_ANDROID_ADB") {
         return Ok(adb.into());
@@ -232,7 +228,7 @@ fn adb() -> Result<path::PathBuf> {
     for loc in probable_sdk_locs()? {
         let adb = loc.join("platform-tools/adb");
         if try_out(&adb) {
-            return Ok(adb.into());
+            return Ok(adb);
         }
     }
     bail!("Adb could be found")

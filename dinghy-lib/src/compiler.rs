@@ -130,8 +130,8 @@ fn create_build_command(
     let bins = arg_as_string_vec(matches, "BIN");
     let features: Vec<String> = matches
         .value_of("FEATURES")
-        .map(|f| f.split(" ").map(|s| s.into()).collect())
-        .unwrap_or(vec![]);
+        .map(|f| f.split(' ').map(|s| s.into()).collect())
+        .unwrap_or_default();
     let examples = arg_as_string_vec(matches, "EXAMPLE");
     let excludes = arg_as_string_vec(matches, "EXCLUDE");
     let jobs = matches.value_of("JOBS").map(|v| v.parse::<u32>().unwrap());
@@ -149,7 +149,7 @@ fn create_build_command(
         let config = config(offline, verbosity)?;
         let requested_profile = profile(release, build_args);
         let root_manifest = find_root_manifest_for_wd(&current_dir()?)?;
-        if current_dir()? == root_manifest.parent().unwrap() && features.len() > 0 {
+        if current_dir()? == root_manifest.parent().unwrap() && !features.is_empty() {
             bail!("cargo does not support --features flag when building from root of workspace")
         }
         let workspace = Workspace::new(&root_manifest, &config)?;
@@ -268,7 +268,7 @@ fn create_run_command(
     let features: Vec<String> = matches
         .value_of("FEATURES")
         .unwrap_or("")
-        .split(" ")
+        .split(' ')
         .map(|s| s.into())
         .collect();
     let examples = arg_as_string_vec(matches, "EXAMPLE");
@@ -355,7 +355,7 @@ fn create_run_command(
                     ops::run(
                         &workspace,
                         &test_options.compile_opts,
-                        args.into_iter()
+                        args.iter()
                             .map(|it| OsString::from(it))
                             .collect_vec()
                             .as_slice(),

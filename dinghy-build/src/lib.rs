@@ -74,7 +74,7 @@ impl CommandExt for Command {
         self.args(&[
             "--prefix",
             path_to_str(&path_between(
-                sysroot_path().unwrap_or(PathBuf::from("/")),
+                sysroot_path().unwrap_or_else(|_| PathBuf::from("/")),
                 prefix_dir,
             ))?,
         ]);
