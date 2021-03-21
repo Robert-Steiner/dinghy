@@ -1,11 +1,9 @@
-use std::fs;
-use std::process::Command;
+use std::{fs, process::Command};
 
 use anyhow::{bail, Context, Result};
 use log::debug;
 
-use crate::utils::file_name_as_str;
-use crate::Runnable;
+use crate::{utils::file_name_as_str, Runnable};
 
 pub mod regular_platform;
 

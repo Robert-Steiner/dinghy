@@ -1,20 +1,24 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::process;
-use std::sync::Arc;
+use std::{
+    fmt::{Debug, Display, Formatter},
+    process,
+    sync::Arc,
+};
 
 use anyhow::Result;
 use cargo::core::compiler::{CompileKind, CompileTarget};
 use dinghy_build::build_env::set_env;
 
-use crate::compiler::Compiler;
-use crate::config::PlatformConfiguration;
-use crate::overlay::Overlayer;
-use crate::project::Project;
-use crate::toolchain::Toolchain;
-use crate::Build;
-use crate::BuildArgs;
-use crate::Device;
-use crate::Platform;
+use crate::{
+    compiler::Compiler,
+    config::PlatformConfiguration,
+    overlay::Overlayer,
+    project::Project,
+    toolchain::Toolchain,
+    Build,
+    BuildArgs,
+    Device,
+    Platform,
+};
 
 pub struct IosPlatform {
     id: String,

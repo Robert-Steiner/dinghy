@@ -2,13 +2,15 @@ use std::process;
 
 use anyhow::{anyhow, Result};
 
-use crate::device::make_remote_app_with_name;
-use crate::ios::xcode;
-use crate::project;
-use crate::project::Project;
-use crate::Build;
-use crate::BuildBundle;
-use crate::Runnable;
+use crate::{
+    device::make_remote_app_with_name,
+    ios::xcode,
+    project,
+    project::Project,
+    Build,
+    BuildBundle,
+    Runnable,
+};
 
 pub fn make_ios_app(
     project: &Project,

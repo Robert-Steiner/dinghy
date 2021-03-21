@@ -1,27 +1,33 @@
-use std::fmt::Formatter;
-use std::{fmt, path::PathBuf};
-use std::{fmt::Display, ptr};
-use std::{mem, process};
+use std::{
+    fmt,
+    fmt::{Display, Formatter},
+    mem,
+    path::PathBuf,
+    process,
+    ptr,
+};
 
 use anyhow::{anyhow, bail, Result};
-use core_foundation::base::{CFType, CFTypeRef, TCFType};
-use core_foundation::boolean::CFBoolean;
-use core_foundation::data::CFData;
-use core_foundation::number::CFNumber;
-use core_foundation::string::CFString;
+use core_foundation::{
+    base::{CFType, CFTypeRef, TCFType},
+    boolean::CFBoolean,
+    data::CFData,
+    number::CFNumber,
+    string::CFString,
+};
 use core_foundation_sys::number::kCFBooleanTrue;
 use log::{debug, error};
 use plist::Value;
 
-use crate::ios::mobiledevice_sys::*;
-use crate::ios::xcode;
-use crate::ios::IosPlatform;
-use crate::project::Project;
-use crate::Build;
-use crate::BuildBundle;
-use crate::Device;
-use crate::DeviceCompatibility;
-use crate::Runnable;
+use crate::{
+    ios::{mobiledevice_sys::*, xcode, IosPlatform},
+    project::Project,
+    Build,
+    BuildBundle,
+    Device,
+    DeviceCompatibility,
+    Runnable,
+};
 
 use super::utils::*;
 

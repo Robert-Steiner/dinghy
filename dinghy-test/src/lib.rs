@@ -1,7 +1,4 @@
-use std::env;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::PathBuf;
+use std::{env, fs::File, io::prelude::*, path::PathBuf};
 
 pub fn test_project_path() -> PathBuf {
     if cfg!(any(target_os = "ios", target_os = "android")) || env::var("DINGHY").is_ok() {

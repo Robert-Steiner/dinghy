@@ -1,27 +1,25 @@
-use std::fs::create_dir_all;
-use std::fs::remove_dir_all;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    fs::{create_dir_all, remove_dir_all, File},
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
-use dinghy_build::build_env::append_path_to_target_env;
-use dinghy_build::build_env::envify;
-use dinghy_build::build_env::set_env_ifndef;
-use dinghy_build::utils::path_between;
+use dinghy_build::{
+    build_env::{append_path_to_target_env, envify, set_env_ifndef},
+    utils::path_between,
+};
 use dirs::home_dir;
 use itertools::Itertools;
 use log::{debug, warn};
 use walkdir::WalkDir;
 
-use crate::config::PlatformConfiguration;
-use crate::project::Project;
-use crate::utils::contains_file_with_ext;
-use crate::utils::destructure_path;
-use crate::utils::file_has_ext;
-use crate::utils::lib_name_from;
-use crate::Platform;
+use crate::{
+    config::PlatformConfiguration,
+    project::Project,
+    utils::{contains_file_with_ext, destructure_path, file_has_ext, lib_name_from},
+    Platform,
+};
 
 #[derive(Clone, Debug)]
 pub enum OverlayScope {

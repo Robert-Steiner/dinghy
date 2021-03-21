@@ -1,12 +1,7 @@
 use std::ffi::OsString;
 
-use clap::Arg;
-use clap::ArgGroup;
-use clap::ArgMatches;
-use clap::SubCommand;
-use clap::{crate_version, App};
-use dinghy_lib::compiler::CompileMode;
-use dinghy_lib::BuildArgs;
+use clap::{crate_version, App, Arg, ArgGroup, ArgMatches, SubCommand};
+use dinghy_lib::{compiler::CompileMode, BuildArgs};
 
 pub struct CargoDinghyCli {}
 

@@ -1,5 +1,4 @@
-use std::io::Write;
-use std::{fs, io, process};
+use std::{fs, io, io::Write, process};
 
 use anyhow::{anyhow, bail, Context, Result};
 use log::{debug, trace};

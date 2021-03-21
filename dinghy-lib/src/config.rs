@@ -1,7 +1,4 @@
-use std::fmt;
-use std::io::Read;
-use std::result;
-use std::{collections, fs, path};
+use std::{collections, fmt, fs, io::Read, path, result};
 
 use anyhow::Result;
 use itertools::Itertools;

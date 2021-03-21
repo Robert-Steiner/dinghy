@@ -1,24 +1,27 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::Arc;
+use std::{
+    fmt::{Debug, Display, Formatter},
+    path::{Path, PathBuf},
+    process::Command,
+    sync::Arc,
+};
 
 use anyhow::{anyhow, Context, Result};
 use cargo::core::compiler::{CompileKind, CompileTarget};
 use dinghy_build::build_env::set_all_env;
 use log::trace;
 
-use crate::compiler::Compiler;
-use crate::config::PlatformConfiguration;
-use crate::overlay::Overlayer;
-use crate::platform;
-use crate::project::Project;
-use crate::toolchain::ToolchainConfig;
-use crate::Build;
-use crate::BuildArgs;
-use crate::Device;
-use crate::Platform;
+use crate::{
+    compiler::Compiler,
+    config::PlatformConfiguration,
+    overlay::Overlayer,
+    platform,
+    project::Project,
+    toolchain::ToolchainConfig,
+    Build,
+    BuildArgs,
+    Device,
+    Platform,
+};
 
 pub struct RegularPlatform {
     compiler: Arc<Compiler>,

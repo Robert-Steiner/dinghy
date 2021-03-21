@@ -4,8 +4,7 @@ use anyhow::Result;
 
 use crate::{Compiler, Configuration, Device, Platform, PlatformConfiguration, PlatformManager};
 
-pub use self::device::HostDevice;
-pub use self::platform::HostPlatform;
+pub use self::{device::HostDevice, platform::HostPlatform};
 
 mod device;
 mod platform;

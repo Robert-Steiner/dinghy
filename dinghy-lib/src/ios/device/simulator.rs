@@ -1,21 +1,24 @@
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::fs;
-use std::path::Path;
-use std::process;
+use std::{
+    fmt,
+    fmt::{Display, Formatter},
+    fs,
+    path::Path,
+    process,
+};
 
 use anyhow::{anyhow, bail, Result};
 use log::debug;
 use tinytemplate::TinyTemplate;
 
-use crate::ios::IosPlatform;
-use crate::project::Project;
-use crate::Build;
-use crate::BuildBundle;
-use crate::Device;
-use crate::DeviceCompatibility;
-use crate::Runnable;
+use crate::{
+    ios::IosPlatform,
+    project::Project,
+    Build,
+    BuildBundle,
+    Device,
+    DeviceCompatibility,
+    Runnable,
+};
 
 use super::utils::*;
 
@@ -224,8 +227,7 @@ fn launch_lldb_simulator(
     envs: &[&str],
     debugger: bool,
 ) -> Result<()> {
-    use std::io::Write;
-    use std::process::Command;
+    use std::{io::Write, process::Command};
     let dir = ::tempdir::TempDir::new("mobiledevice-rs-lldb")?;
     let tmppath = dir.path();
     let lldb_script_filename = tmppath.join("lldb-script");
@@ -247,26 +249,6 @@ fn launch_lldb_simulator(
         };
         let rendered = tt.render("lldb_script", &context)?;
         script.write_all(rendered.as_bytes())?;
-
-        // std::thread::sleep(std::time::Duration::from_secs(1223423));
-
-        // writeln!(script, "platform select ios-simulator")?;
-        // writeln!(script, "target create {}", installed)?;
-        // writeln!(script, "script pass")?;
-        // writeln!(script, "command script import {:?}", python_lldb_support)?;
-        // writeln!(
-        //     script,
-        //     "command script add -s synchronous -f helpers.start start"
-        // )?;
-        // writeln!(
-        //     script,
-        //     "command script add -f helpers.connect_command connect"
-        // )?;
-        // writeln!(script, "connect connect://{}", dev.id)?;
-        // if !debugger {
-        //     writeln!(script, "start {}", args.join(" "))?;
-        //     writeln!(script, "quit")?;
-        // }
     }
 
     let stat = Command::new("xcrun")
@@ -295,14 +277,15 @@ struct Context {
 
 static TEMPLATE: &'static str = r#"
 platform select ios-simulator
-target create  {installed}
+target create {installed}
 script pass
-command script import {python_lldb_support}
+command script import "{python_lldb_support}"
 command script add -s synchronous -f helpers.start start
 command script add -f helpers.connect_command connect
 connect connect://{id}
-{{ if debugger }}
-start {args}
-quit
-{{ endif }}
 "#;
+
+// if !debugger {
+//     writeln!(script, "start {}", args.join(" "))?;
+//     writeln!(script, "quit")?;
+// }

@@ -1,15 +1,9 @@
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 use anyhow::{anyhow, Context, Result};
 use log::debug;
 
-use crate::project;
-use crate::project::Project;
-use crate::utils::copy_and_sync_file;
-use crate::Build;
-use crate::BuildBundle;
-use crate::Runnable;
+use crate::{project, project::Project, utils::copy_and_sync_file, Build, BuildBundle, Runnable};
 
 pub fn make_remote_app(
     project: &Project,

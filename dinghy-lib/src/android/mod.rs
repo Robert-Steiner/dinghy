@@ -3,10 +3,16 @@ use std::{env, fs, path, process, sync};
 use anyhow::{anyhow, bail, Context};
 use log::debug;
 
-use crate::config::PlatformConfiguration;
-use crate::platform::regular_platform::RegularPlatform;
-use crate::toolchain::ToolchainConfig;
-use crate::{Compiler, Device, Platform, PlatformManager, Result};
+use crate::{
+    config::PlatformConfiguration,
+    platform::regular_platform::RegularPlatform,
+    toolchain::ToolchainConfig,
+    Compiler,
+    Device,
+    Platform,
+    PlatformManager,
+    Result,
+};
 
 pub use self::device::AndroidDevice;
 

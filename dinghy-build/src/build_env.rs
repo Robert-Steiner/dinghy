@@ -13,12 +13,12 @@
 //! these variables names. It also notify all environment lookup "back" to
 //! cargo using `cargo:rerun-if-env-changed` markup.
 
-use super::Result;
-use super::ResultExt;
-use std::env;
-use std::ffi::OsStr;
-use std::ffi::OsString;
-use std::path::PathBuf;
+use super::{Result, ResultExt};
+use std::{
+    env,
+    ffi::{OsStr, OsString},
+    path::PathBuf,
+};
 
 /// Append a value to a PATH-like (`:`-separated) environment variable.
 pub fn append_path_to_env<K: AsRef<OsStr>, V: AsRef<OsStr>>(key: K, value: V) {

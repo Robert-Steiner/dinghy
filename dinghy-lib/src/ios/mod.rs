@@ -6,9 +6,11 @@ use log::info;
 
 use crate::{Compiler, Device, Platform, PlatformManager};
 
-pub use self::device::{physical::IosDevice, simulator::IosSimDevice};
 use self::mobiledevice_sys::*;
-pub use self::platform::IosPlatform;
+pub use self::{
+    device::{physical::IosDevice, simulator::IosSimDevice},
+    platform::IosPlatform,
+};
 
 mod device;
 mod mobiledevice_sys;

@@ -1,8 +1,7 @@
 //! Some helpers around Path and PathBuf manipulations.
 
 use super::Result;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Wraps the annoying PathBuf to string conversion in one single call.
 pub fn path_to_str(path: &PathBuf) -> Result<&str> {

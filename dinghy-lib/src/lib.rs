@@ -1,15 +1,16 @@
-use std::fmt::Display;
-use std::{path, sync};
+use std::{fmt::Display, path, sync};
 
 use anyhow::{anyhow, Result};
 use cargo::core::compiler::CompileKind;
 
-use crate::compiler::CompileMode;
-use crate::config::PlatformConfiguration;
 #[cfg(target_os = "macos")]
 use crate::ios::IosManager;
-use crate::platform::regular_platform::RegularPlatform;
-use crate::project::Project;
+use crate::{
+    compiler::CompileMode,
+    config::PlatformConfiguration,
+    platform::regular_platform::RegularPlatform,
+    project::Project,
+};
 
 mod android;
 mod host;
@@ -27,8 +28,7 @@ pub mod platform;
 pub mod project;
 pub mod utils;
 
-pub use crate::compiler::Compiler;
-pub use crate::config::Configuration;
+pub use crate::{compiler::Compiler, config::Configuration};
 
 pub struct Dinghy {
     devices: Vec<sync::Arc<Box<dyn Device>>>,

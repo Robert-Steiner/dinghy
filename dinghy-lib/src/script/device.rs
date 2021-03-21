@@ -4,8 +4,13 @@ use anyhow::{anyhow, bail, Result};
 use log::trace;
 
 use crate::{
-    config::ScriptDeviceConfiguration, platform::regular_platform::RegularPlatform,
-    project::Project, Build, BuildBundle, Device, DeviceCompatibility,
+    config::ScriptDeviceConfiguration,
+    platform::regular_platform::RegularPlatform,
+    project::Project,
+    Build,
+    BuildBundle,
+    Device,
+    DeviceCompatibility,
 };
 
 #[derive(Debug)]

@@ -1,21 +1,23 @@
-use std::env::current_dir;
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{
+    env::current_dir,
+    fs,
+    fs::File,
+    io::prelude::*,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{anyhow, Result};
 use cargo::core::compiler::CompileKind;
 use ignore::WalkBuilder;
 use log::{debug, trace, warn};
 
-use crate::config::dinghy_config;
-use crate::config::Configuration;
-use crate::utils::copy_and_sync_file;
-use crate::Platform;
-use crate::Runnable;
+use crate::{
+    config::{dinghy_config, Configuration},
+    utils::copy_and_sync_file,
+    Platform,
+    Runnable,
+};
 
 #[derive(Debug)]
 pub struct Project {

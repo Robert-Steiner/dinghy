@@ -1,9 +1,7 @@
 #![allow(non_camel_case_types, dead_code)]
 use libc::{c_char, c_int, c_uint, c_void};
 
-use core_foundation::dictionary::CFDictionaryRef;
-use core_foundation::string::CFStringRef;
-use core_foundation::url::CFURLRef;
+use core_foundation::{dictionary::CFDictionaryRef, string::CFStringRef, url::CFURLRef};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]

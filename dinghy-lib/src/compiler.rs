@@ -1,44 +1,42 @@
-use std::{collections::HashSet, io::{Read, Write}};
-use std::env;
-use std::env::current_dir;
-use std::ffi::OsString;
-use std::fs;
-use std::fs::File;
-use std::iter::FromIterator;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{
+    collections::HashSet,
+    env,
+    env::current_dir,
+    ffi::OsString,
+    fs,
+    fs::File,
+    io::{Read, Write},
+    iter::FromIterator,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use anyhow::Context;
-use anyhow::{anyhow, bail, Result};
-use cargo::core::compiler as CargoCoreCompiler;
-use cargo::core::compiler::Compilation;
+use anyhow::{anyhow, bail, Context, Result};
 pub use cargo::core::compiler::CompileMode;
-use cargo::core::compiler::MessageFormat;
-use cargo::core::Workspace;
-use cargo::ops;
-use cargo::ops::CleanOptions;
-use cargo::ops::CompileFilter;
-use cargo::ops::CompileOptions;
-use cargo::ops::Packages as CompilePackages;
-use cargo::ops::TestOptions;
-use cargo::util::config::Config;
-use cargo::util::important_paths::find_root_manifest_for_wd;
-use cargo::util::interning::InternedString;
+use cargo::{
+    core::{
+        compiler as CargoCoreCompiler,
+        compiler::{Compilation, MessageFormat},
+        Workspace,
+    },
+    ops,
+    ops::{CleanOptions, CompileFilter, CompileOptions, Packages as CompilePackages, TestOptions},
+    util::{config::Config, important_paths::find_root_manifest_for_wd, interning::InternedString},
+};
 use clap::ArgMatches;
 use dinghy_build::build_env::target_env_from_triple;
 use itertools::Itertools;
 use log::{debug, trace};
 use walkdir::WalkDir;
 
-use crate::utils::arg_as_string_vec;
-use crate::utils::copy_and_sync_file;
-use crate::utils::is_library;
-use crate::Build;
-use crate::BuildArgs;
-use crate::Runnable;
+use crate::{
+    utils::{arg_as_string_vec, copy_and_sync_file, is_library},
+    Build,
+    BuildArgs,
+    Runnable,
+};
 
 use crate::Platform;
 

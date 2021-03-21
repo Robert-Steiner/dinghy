@@ -1,11 +1,11 @@
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{anyhow, bail, Result};
 use clap::ArgMatches;
-use filetime::set_file_times;
-use filetime::FileTime;
+use filetime::{set_file_times, FileTime};
 use log::trace;
 
 pub fn arg_as_string_vec(matches: &ArgMatches, option: &str) -> Vec<String> {

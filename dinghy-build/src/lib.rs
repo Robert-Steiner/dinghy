@@ -18,16 +18,17 @@ pub mod build;
 pub mod build_env;
 pub mod utils;
 
-use crate::build::is_cross_compiling;
-use crate::build_env::sysroot_path;
-use crate::build_env::target_env;
-use crate::utils::path_between;
-use crate::utils::path_to_str;
-use std::env;
-use std::ffi::OsStr;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
+use crate::{
+    build::is_cross_compiling,
+    build_env::{sysroot_path, target_env},
+    utils::{path_between, path_to_str},
+};
+use std::{
+    env,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 error_chain! {
     foreign_links {

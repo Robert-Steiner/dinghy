@@ -1,17 +1,11 @@
-use std::env;
-use std::env::current_dir;
-use std::sync::Arc;
+use std::{env, env::current_dir, sync::Arc};
 
 use anyhow::{anyhow, bail, Result};
 use clap::ArgMatches;
-use dinghy_lib::compiler::Compiler;
-use dinghy_lib::config::dinghy_config;
-use dinghy_lib::project::Project;
-use dinghy_lib::utils::arg_as_string_vec;
-use dinghy_lib::Build;
-use dinghy_lib::Device;
-use dinghy_lib::Dinghy;
-use dinghy_lib::Platform;
+use dinghy_lib::{
+    compiler::Compiler, config::dinghy_config, project::Project, utils::arg_as_string_vec, Build,
+    Device, Dinghy, Platform,
+};
 use itertools::Itertools;
 use log::{debug, error, info};
 

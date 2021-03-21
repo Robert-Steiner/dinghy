@@ -1,24 +1,26 @@
-use std::fmt;
-use std::fmt::Formatter;
-use std::fmt::{Debug, Display};
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{
+    fmt,
+    fmt::{Debug, Display, Formatter},
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::{bail, Context, Result};
 use log::{debug, info, log_enabled, trace};
 
-use crate::config::SshDeviceConfiguration;
-use crate::device::make_remote_app;
-use crate::host::HostPlatform;
-use crate::platform::regular_platform::RegularPlatform;
-use crate::project::Project;
-use crate::utils::path_to_str;
-use crate::Build;
-use crate::BuildBundle;
-use crate::Device;
-use crate::DeviceCompatibility;
-use crate::Runnable;
+use crate::{
+    config::SshDeviceConfiguration,
+    device::make_remote_app,
+    host::HostPlatform,
+    platform::regular_platform::RegularPlatform,
+    project::Project,
+    utils::path_to_str,
+    Build,
+    BuildBundle,
+    Device,
+    DeviceCompatibility,
+    Runnable,
+};
 
 pub struct SshDevice {
     pub id: String,

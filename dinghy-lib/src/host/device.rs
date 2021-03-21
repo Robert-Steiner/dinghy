@@ -1,20 +1,23 @@
-use std::fmt;
-use std::fmt::Formatter;
-use std::fmt::{Debug, Display};
-use std::sync::Arc;
+use std::{
+    fmt,
+    fmt::{Debug, Display, Formatter},
+    sync::Arc,
+};
 
 use dinghy_build::build_env::set_env;
 use itertools::Itertools;
 use log::debug;
 
-use crate::compiler::Compiler;
-use crate::host::HostPlatform;
-use crate::project::Project;
-use crate::Build;
-use crate::BuildBundle;
-use crate::Device;
-use crate::DeviceCompatibility;
-use crate::Result;
+use crate::{
+    compiler::Compiler,
+    host::HostPlatform,
+    project::Project,
+    Build,
+    BuildBundle,
+    Device,
+    DeviceCompatibility,
+    Result,
+};
 
 pub struct HostDevice {
     platform: HostPlatform,
