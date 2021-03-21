@@ -1,7 +1,7 @@
 use libc::c_void;
 use std::{mem, ptr, sync, thread};
 
-pub use self::device::{IosDevice, IosSimDevice};
+pub use self::device::{physical::IosDevice, simulator::IosSimDevice};
 use self::mobiledevice_sys::*;
 pub use self::platform::IosPlatform;
 use crate::{Compiler, Device, Platform, PlatformManager, Result};
