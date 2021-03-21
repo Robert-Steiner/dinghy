@@ -10,7 +10,7 @@ pub fn arg_as_string_vec(matches: &ArgMatches, option: &str) -> Vec<String> {
     matches
         .values_of(option)
         .map(|vs| vs.map(|s| s.to_string()).collect())
-        .unwrap_or(vec![])
+        .unwrap_or_default()
 }
 
 pub fn copy_and_sync_file<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> Result<()> {
@@ -38,7 +38,7 @@ pub fn copy_and_sync_file<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> Res
     Ok(())
 }
 
-pub fn path_to_str<'a>(path: &'a Path) -> Result<&'a str> {
+pub fn path_to_str(path: &Path) -> Result<&str> {
     Ok(path
         .to_str()
         .ok_or_else(|| anyhow!("Path is invalid '{}'", path.display()))?)

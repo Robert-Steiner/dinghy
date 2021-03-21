@@ -37,7 +37,6 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
-use toml;
 use walkdir::WalkDir;
 
 use anyhow::Context;

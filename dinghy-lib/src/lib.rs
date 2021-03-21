@@ -95,7 +95,7 @@ impl Dinghy {
         let mut devices = vec![];
         let mut platforms = vec![];
         for man in managers.into_iter() {
-            devices.extend(man.devices()?.into_iter().map(|it| sync::Arc::new(it)));
+            devices.extend(man.devices()?.into_iter().map(sync::Arc::new));
             platforms.extend(
                 man.platforms()?
                     .into_iter()
@@ -118,9 +118,11 @@ impl Dinghy {
                 platform_conf
                     .toolchain
                     .clone()
-                    .map(|it| path::PathBuf::from(it))
-                    .or(dirs::home_dir()
-                        .map(|it| it.join(".dinghy").join("toolchain").join(platform_name)))
+                    .map(path::PathBuf::from)
+                    .or_else(|| {
+                        dirs::home_dir()
+                            .map(|it| it.join(".dinghy").join("toolchain").join(platform_name))
+                    })
                     .ok_or_else(|| anyhow!("Toolchain missing for platform {}", platform_name))?,
             )?;
             platforms.push((pf.id(), sync::Arc::new(pf)));

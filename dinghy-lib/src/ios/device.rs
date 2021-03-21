@@ -60,9 +60,9 @@ impl IosDevice {
             bail!("unexpected id format")
         };
         Ok(IosDevice {
-            ptr: ptr,
-            name: name,
-            id: id,
+            ptr,
+            name,
+            id,
             arch_cpu: cpu.into(),
             rustc_triple: format!("{}-apple-ios", cpu),
         })
@@ -492,9 +492,9 @@ fn launch_app(dev: &IosSimDevice, app_args: &[&str], _envs: &[&str]) -> Result<(
     // lldb will say "no simulators found".
     let lldb_script_filename = tmppath.join("lldb-script");
     let mut script = fs::File::create(&lldb_script_filename)?;
-    write!(script, "attach {}\n", dinghy_pid)?;
-    write!(script, "continue\n")?;
-    write!(script, "quit\n")?;
+    writeln!(script, "attach {}", dinghy_pid)?;
+    writeln!(script, "continue")?;
+    writeln!(script, "quit")?;
     let output = process::Command::new("lldb")
         .arg("")
         .arg("-s")

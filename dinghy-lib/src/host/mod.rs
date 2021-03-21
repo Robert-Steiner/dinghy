@@ -21,10 +21,11 @@ impl HostManager {
             .get("host")
             .map(|it| (*it).clone())
             .unwrap_or(PlatformConfiguration::empty());
-        Some(HostManager {
-            compiler: compiler,
+        HostManager {
+            compiler,
             host_conf,
-        })
+        }
+        .into()
     }
 
     fn platform(&self) -> Result<HostPlatform> {
@@ -34,7 +35,10 @@ impl HostManager {
 
 impl PlatformManager for HostManager {
     fn devices(&self) -> Result<Vec<Box<dyn Device>>> {
-        Ok(vec![Box::new(HostDevice::new(self.platform()?, &self.compiler))])
+        Ok(vec![Box::new(HostDevice::new(
+            self.platform()?,
+            &self.compiler,
+        ))])
     }
 
     fn platforms(&self) -> Result<Vec<Box<dyn Platform>>> {

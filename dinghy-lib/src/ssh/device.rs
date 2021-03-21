@@ -69,7 +69,7 @@ impl SshDevice {
                 if let Some(port) = self.conf.port {
                     command.arg("-P").arg(&format!("{}", port));
                 }
-                command.arg(format!("{}", rsync));
+                command.arg(rsync);
                 command.arg(format!(
                     "{}@{}:{}",
                     self.conf.username, self.conf.hostname, rsync_path
@@ -122,7 +122,7 @@ impl SshDevice {
 
     fn to_remote_bundle(&self, build_bundle: &BuildBundle) -> Result<BuildBundle> {
         let remote_prefix =
-            PathBuf::from(self.conf.path.clone().unwrap_or("/tmp".into())).join("dinghy");
+            PathBuf::from(self.conf.path.clone().unwrap_or_else(|| "/tmp".into())).join("dinghy");
         build_bundle.replace_prefix_with(remote_prefix)
     }
 }

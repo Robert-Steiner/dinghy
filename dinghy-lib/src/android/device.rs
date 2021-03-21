@@ -36,10 +36,10 @@ impl AndroidDevice {
                 prop,
                 abilist.trim()
             );
-            if abilist.trim().len() > 0 {
+            if !abilist.trim().is_empty() {
                 let supported_targets = abilist
                     .trim()
-                    .split(",")
+                    .split(',')
                     .filter_map(|abi| {
                         Some(match abi {
                             "arm64-v8a" => "aarch64-linux-android",
@@ -55,7 +55,7 @@ impl AndroidDevice {
                 return Ok(AndroidDevice {
                     adb,
                     id: id.into(),
-                    supported_targets: supported_targets,
+                    supported_targets,
                 });
             }
         }
@@ -158,7 +158,7 @@ impl AndroidDevice {
 impl DeviceCompatibility for AndroidDevice {
     fn is_compatible_with_regular_platform(&self, platform: &RegularPlatform) -> bool {
         if platform.id.starts_with("auto-android") {
-            let cpu = platform.id.split("-").nth(2).unwrap();
+            let cpu = platform.id.split('-').nth(2).unwrap();
             self.supported_targets
                 .iter()
                 .any(|target| target.starts_with(cpu))

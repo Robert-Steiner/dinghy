@@ -205,7 +205,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             .collect::<Vec<&str>>()
             .join("\n");
         settings.push(SignatureSettings {
-            entitlements: entitlements,
+            entitlements,
             file: file
                 .path()
                 .to_str()

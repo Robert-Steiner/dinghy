@@ -66,10 +66,7 @@ impl IosManager {
                 .map(|mut devices| devices.push(IosDevice::new(device).unwrap()));
         }
 
-        Ok(Some(IosManager {
-            devices: devices,
-            compiler,
-        }))
+        Ok(Some(IosManager { devices, compiler }))
     }
 }
 
