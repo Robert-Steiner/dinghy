@@ -49,7 +49,7 @@ impl Overlayer {
         sysroot: P,
     ) -> Result<()> {
         let overlayer = Overlayer {
-            platform_id: platform.id().to_string(),
+            platform_id: platform.id(),
             rustc_triple: Some(platform.rustc_triple().to_string()),
             sysroot: sysroot.as_ref().to_path_buf(),
             work_dir: project.overlay_work_dir(platform)?,
@@ -99,7 +99,7 @@ impl Overlayer {
             .overlays
             .as_ref()
             .unwrap_or(&::std::collections::HashMap::new())
-            .into_iter()
+            .iter()
             .map(|(overlay_id, overlay_conf)| Overlay {
                 id: overlay_id.to_string(),
                 path: PathBuf::from(overlay_conf.path.as_str()),
@@ -124,7 +124,7 @@ impl Overlayer {
             .filter_map(destructure_path)
             .map(|(overlay_dir_path, overlay_dir_name)| Overlay {
                 id: overlay_dir_name,
-                path: overlay_dir_path.to_path_buf(),
+                path: overlay_dir_path,
                 scope: OverlayScope::Application,
             })
             .collect())

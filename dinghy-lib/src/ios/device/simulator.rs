@@ -75,8 +75,7 @@ impl Device for IosSimDevice {
     ) -> Result<BuildBundle> {
         let runnable = build
             .runnables
-            .iter()
-            .next()
+            .get(0)
             .ok_or_else(|| anyhow!("No executable compiled"))?;
         let build_bundle = self.install_app(project, build, runnable)?;
         let install_path = String::from_utf8(

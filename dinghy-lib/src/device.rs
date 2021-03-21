@@ -24,8 +24,7 @@ pub fn make_remote_app_with_name(
 ) -> Result<BuildBundle> {
     fn is_sysroot_library(path: &Path) -> bool {
         path.ancestors()
-            .find(|ancestor_path| ancestor_path.ends_with("sysroot/usr/lib"))
-            .is_some()
+            .any(|ancestor_path| ancestor_path.ends_with("sysroot/usr/lib"))
             && (!path
                 .file_name()
                 .unwrap()
@@ -115,8 +114,8 @@ pub fn make_remote_app_with_name(
     Ok(BuildBundle {
         id: runnable.id.clone(),
         bundle_dir: bundle_path.to_path_buf(),
-        bundle_exe: bundle_exe_path.to_path_buf(),
-        lib_dir: bundle_libs_path.to_path_buf(),
+        bundle_exe: bundle_exe_path,
+        lib_dir: bundle_libs_path,
         root_dir,
     })
 }

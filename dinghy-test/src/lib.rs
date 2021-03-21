@@ -54,7 +54,7 @@ pub fn try_test_file_path(test_data_id: &str) -> Option<PathBuf> {
 
         contents
             .lines()
-            .map(|line| line.split(":"))
+            .map(|line| line.split(':'))
             .map(|mut line| (line.next(), line.next()))
             .find(|&(id, _)| id.map(|it| it == test_data_id).unwrap_or(false))
             .and_then(|(_, path)| path)

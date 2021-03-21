@@ -27,7 +27,7 @@ pub fn make_ios_app(
         .output()?;
     let magic = String::from_utf8(magic.stdout)?;
     let target = magic
-        .split(" ")
+        .split(' ')
         .last()
         .ok_or_else(|| anyhow!("empty magic"))?;
     xcode::add_plist_to_app(&build_bundle, target, app_id)?;

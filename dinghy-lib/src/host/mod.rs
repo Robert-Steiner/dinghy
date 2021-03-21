@@ -20,7 +20,7 @@ impl HostManager {
             .platforms
             .get("host")
             .map(|it| (*it).clone())
-            .unwrap_or(PlatformConfiguration::empty());
+            .unwrap_or_else(PlatformConfiguration::empty);
         HostManager {
             compiler,
             host_conf,

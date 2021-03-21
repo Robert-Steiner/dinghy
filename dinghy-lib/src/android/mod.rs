@@ -75,7 +75,7 @@ impl PlatformManager for AndroidManager {
                         let entry = entry?;
                         if entry.file_type()?.is_dir() {
                             let folder_name = entry.file_name().into_string().unwrap();
-                            if let Ok(_) = folder_name.parse::<u32>() {
+                            if folder_name.parse::<u32>().is_ok() {
                                 api_levels.push(folder_name)
                             }
                         }

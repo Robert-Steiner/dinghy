@@ -75,10 +75,10 @@ impl Device for ScriptDevice {
                     envs.iter()
                         .map(|kv| {
                             Ok((
-                                kv.split("=")
-                                    .nth(0)
+                                kv.split('=')
+                                    .next()
                                     .ok_or_else(|| anyhow!("Wrong env spec"))?,
-                                kv.split("=")
+                                kv.split('=')
                                     .nth(1)
                                     .ok_or_else(|| anyhow!("Wrong env spec"))?,
                             ))

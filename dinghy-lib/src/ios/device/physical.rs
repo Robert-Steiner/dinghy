@@ -1,12 +1,11 @@
+use std::fmt::Formatter;
 use std::{fmt, path::PathBuf};
 use std::{fmt::Display, ptr};
-use std::{fmt::Formatter, path::Path};
 use std::{mem, process};
 
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::data::CFData;
-use core_foundation::dictionary::CFDictionary;
 use core_foundation::number::CFNumber;
 use core_foundation::string::CFString;
 use core_foundation_sys::number::kCFBooleanTrue;
@@ -55,7 +54,7 @@ impl IosDevice {
             ptr,
             name,
             id,
-            arch_cpu: cpu.into(),
+            arch_cpu: cpu,
             rustc_triple: format!("{}-apple-ios", cpu),
         })
     }
@@ -71,24 +70,13 @@ impl IosDevice {
             .ok_or_else(|| anyhow!("no signing identity found"))?;
         let app_id = signing
             .name
-            .split(" ")
+            .split(' ')
             .last()
             .ok_or_else(|| anyhow!("no app id ?"))?;
 
         let build_bundle = make_ios_app(project, build, runnable, &app_id)?;
 
         xcode::sign_app(&build_bundle, &signing)?;
-        Ok(build_bundle)
-    }
-
-    fn install_app(
-        &self,
-        project: &Project,
-        build: &Build,
-        runnable: &Runnable,
-    ) -> Result<BuildBundle> {
-        let build_bundle = self.make_app(project, build, runnable)?;
-        install_app(self.ptr, &build_bundle.bundle_dir)?;
         Ok(build_bundle)
     }
 }
@@ -115,10 +103,9 @@ impl Device for IosDevice {
     ) -> Result<BuildBundle> {
         let runnable = build
             .runnables
-            .iter()
-            .next()
+            .get(0)
             .ok_or_else(|| anyhow!("No executable compiled"))?;
-        let build_bundle = self.install_app(project, build, runnable)?;
+        let build_bundle = self.make_app(project, build, runnable)?;
         run_ios_deploy(args, envs, &build_bundle.bundle_dir)?;
         Ok(build_bundle)
     }
@@ -132,7 +119,7 @@ impl Device for IosDevice {
     ) -> Result<Vec<BuildBundle>> {
         let mut build_bundles = Vec::with_capacity(build.runnables.len());
         for runnable in build.runnables.iter() {
-            let build_bundle = self.install_app(project, build, runnable)?;
+            let build_bundle = self.make_app(project, build, runnable)?;
             run_ios_deploy(args, envs, &build_bundle.bundle_dir)?;
             build_bundles.push(build_bundle)
         }
@@ -169,13 +156,10 @@ impl Display for IosDevice {
 impl DeviceCompatibility for IosDevice {
     fn is_compatible_with_ios_platform(&self, platform: &IosPlatform) -> bool {
         if platform.sim {
-            return false;
+            false
+        } else {
+            platform.toolchain.rustc_triple == self.rustc_triple.as_str()
         }
-
-        if platform.toolchain.rustc_triple == self.rustc_triple.as_str() {
-            return true;
-        }
-        return false;
     }
 }
 
@@ -250,40 +234,6 @@ enum Value {
     Boolean(bool),
 }
 
-pub fn install_app<P: AsRef<Path>>(dev: *const am_device, app: P) -> Result<()> {
-    unsafe {
-        let _session = ensure_session(dev)?;
-        let path = app
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| anyhow!("failure to convert {:?}", app.as_ref()))?;
-        let url =
-            ::core_foundation::url::CFURL::from_file_system_path(CFString::new(path), 0, true);
-        let options = [(
-            CFString::from_static_string("PackageType"),
-            CFString::from_static_string("Developper").as_CFType(),
-        )];
-        let options = CFDictionary::from_CFType_pairs(&options);
-        mk_result(AMDeviceSecureTransferPath(
-            0,
-            dev,
-            url.as_concrete_TypeRef(),
-            options.as_concrete_TypeRef(),
-            ptr::null(),
-            ptr::null(),
-        ))?;
-        mk_result(AMDeviceSecureInstallApplication(
-            0,
-            dev,
-            url.as_concrete_TypeRef(),
-            options.as_concrete_TypeRef(),
-            ptr::null(),
-            ptr::null(),
-        ))?;
-    }
-    Ok(())
-}
-
 fn device_read_value(dev: *const am_device, key: &str) -> Result<Option<Value>> {
     unsafe {
         let key = CFString::new(key);
@@ -299,22 +249,25 @@ fn rustify(raw: CFTypeRef) -> Result<Value> {
     unsafe {
         let cftype: CFType = TCFType::wrap_under_get_rule(mem::transmute(raw));
         if cftype.type_of() == CFString::type_id() {
-            let value: CFString = TCFType::wrap_under_get_rule(mem::transmute(raw));
+            let value: CFString =
+                TCFType::wrap_under_get_rule(raw as *const core_foundation::string::__CFString);
             return Ok(Value::String(value.to_string()));
         }
 
         if cftype.type_of() == CFData::type_id() {
-            let value: CFData = TCFType::wrap_under_get_rule(mem::transmute(raw));
+            let value: CFData =
+                TCFType::wrap_under_get_rule(raw as *const core_foundation::data::__CFData);
             return Ok(Value::Data(value.bytes().to_vec()));
         }
         if cftype.type_of() == CFNumber::type_id() {
-            let value: CFNumber = TCFType::wrap_under_get_rule(mem::transmute(raw));
+            let value: CFNumber =
+                TCFType::wrap_under_get_rule(raw as *const core_foundation::number::__CFNumber);
             if let Some(i) = value.to_i64() {
                 return Ok(Value::I64(i));
             }
         }
         if cftype.type_of() == CFBoolean::type_id() {
-            return Ok(Value::Boolean(raw == mem::transmute(kCFBooleanTrue)));
+            return Ok(Value::Boolean(raw == kCFBooleanTrue as *const libc::c_void));
         }
         cftype.show();
         bail!("unknown value")

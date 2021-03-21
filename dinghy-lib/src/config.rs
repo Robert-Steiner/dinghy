@@ -161,10 +161,10 @@ impl Configuration {
             self.platforms.extend(pfs)
         }
         self.ssh_devices
-            .extend(other.ssh_devices.unwrap_or(collections::BTreeMap::new()));
+            .extend(other.ssh_devices.unwrap_or_default());
         self.script_devices
-            .extend(other.script_devices.unwrap_or(collections::BTreeMap::new()));
-        for (id, source) in other.test_data.unwrap_or(collections::BTreeMap::new()) {
+            .extend(other.script_devices.unwrap_or_default());
+        for (id, source) in other.test_data.unwrap_or_default() {
             // TODO Remove key
             self.test_data.push(TestData {
                 id: id.to_string(),

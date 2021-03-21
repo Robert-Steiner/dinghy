@@ -101,7 +101,7 @@ impl PlatformManager for IosManager {
                                 anyhow!("unexpected simulator list format (missing udid)")
                             })?
                             .to_string(),
-                        os: k.split(" ").last().unwrap().to_string(),
+                        os: k.split(' ').last().unwrap().to_string(),
                     }))
                 }
             }

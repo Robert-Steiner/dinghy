@@ -99,7 +99,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
     let find_identities = process::Command::new("security")
         .args(&["find-identity", "-v", "-p", "codesigning"])
         .output()?;
-    for line in String::from_utf8(find_identities.stdout)?.split("\n") {
+    for line in String::from_utf8(find_identities.stdout)?.split('\n') {
         if let Some(caps) = identity_regex.captures(&line) {
             let name: String = caps[2].into();
             if !name.starts_with("iPhone Developer: ") && !name.starts_with("Apple Development:") {
@@ -198,7 +198,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
         }
         let identity = identity.unwrap();
         let entitlements = String::from_utf8(decoded.stdout)?
-            .split("\n")
+            .split('\n')
             .skip_while(|line| !line.contains("<key>Entitlements</key>"))
             .skip(2)
             .take_while(|line| !line.contains("</dict>"))

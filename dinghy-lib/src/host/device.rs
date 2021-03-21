@@ -1,4 +1,5 @@
 use crate::compiler::Compiler;
+use crate::host::HostPlatform;
 use crate::project::Project;
 use crate::Build;
 use crate::BuildBundle;
@@ -11,7 +12,6 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
-use crate::host::HostPlatform;
 
 pub struct HostDevice {
     platform: HostPlatform,
@@ -89,14 +89,15 @@ impl Device for HostDevice {
             .map(|arg| Ok(shellexpand::full(arg)?.to_string()))
             .collect::<Result<Vec<_>>>()?;
         debug!("Arguments expanded to: {:?}", args);
-        self.compiler.run(&self.platform, &build.build_args, &*args)?;
+        self.compiler
+            .run(&self.platform, &build.build_args, &*args)?;
         Ok(build_bundles)
     }
 }
 
 impl Debug for HostDevice {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        Ok(fmt.write_str(format!("Host {{ }}").as_str())?)
+        fmt.write_str("Host {{ }}")
     }
 }
 

@@ -355,15 +355,12 @@ fn create_run_command(
                     ops::run(
                         &workspace,
                         &test_options.compile_opts,
-                        args.iter()
-                            .map(|it| OsString::from(it))
-                            .collect_vec()
-                            .as_slice(),
+                        args.iter().map(OsString::from).collect_vec().as_slice(),
                     )?;
                 }
                 CompileMode::Test => {
                     if let Some(err) = ops::run_tests(&workspace, &test_options, args)? {
-                        Err(err)?;
+                        return Err(err.into());
                     }
                 }
                 otherwise => {
@@ -632,7 +629,7 @@ fn find_all_linked_library_names(
 
     fn parse_lib_name(lib_name: String) -> String {
         lib_name
-            .split("=")
+            .split('=')
             .last()
             .map(|it| it.to_string())
             .unwrap_or(lib_name)
@@ -653,7 +650,6 @@ fn find_all_linked_library_names(
         })
         .flat_map(|build_output| build_output.map(|it| it.library_links))
         .flatten()
-        .map(|lib_name| lib_name.clone())
         .map(parse_lib_name)
         .chain(build_args.forced_overlays.clone())
         .collect();
@@ -706,7 +702,7 @@ pub fn linker_lib_dirs(compilation: &Compilation, config: &Config) -> Result<Vec
     for line in output.lines() {
         if line.starts_with("libraries: =") {
             let line = line.trim_start_matches("libraries: =");
-            for path_str in line.split(":") {
+            for path_str in line.split(':') {
                 paths.push(PathBuf::from(path_str))
             }
         }
@@ -719,13 +715,10 @@ pub fn overlay_lib_dirs(platform: &dyn Platform) -> Result<Vec<PathBuf>> {
         env::var("PKG_CONFIG_LIBDIR").unwrap_or("".to_string())
     } else {
         target_env_from_triple("PKG_CONFIG_LIBDIR", platform.rustc_triple(), false)
-            .unwrap_or("".to_string())
+            .unwrap_or_else(|_| "".to_string())
     };
 
-    Ok(pkg_config_libdir
-        .split(":")
-        .map(|it| PathBuf::from(it))
-        .collect())
+    Ok(pkg_config_libdir.split(':').map(PathBuf::from).collect())
 }
 
 fn linker(compilation: &Compilation, compile_config: &Config) -> Result<PathBuf> {
@@ -734,7 +727,7 @@ fn linker(compilation: &Compilation, compile_config: &Config) -> Result<PathBuf>
     if let Some(linker) = linker {
         let linker = linker.val;
         if linker.exists() {
-            return Ok(linker);
+            Ok(linker)
         } else {
             bail!("Couldn't find target linker {}={:?}", config, linker)
         }
@@ -777,7 +770,7 @@ fn project_metadata<P: AsRef<Path>>(path: P) -> Result<Option<ProjectMetadata>> 
                     .get("allowed_rustc_triples")
                     .and_then(|targets| targets.as_array())
                     .unwrap_or(&vec![])
-                    .into_iter()
+                    .iter()
                     .filter_map(|target| target.as_str().map(|it| it.to_string()))
                     .collect_vec(),
             ),
@@ -786,7 +779,7 @@ fn project_metadata<P: AsRef<Path>>(path: P) -> Result<Option<ProjectMetadata>> 
                     .get("ignored_rustc_triples")
                     .and_then(|targets| targets.as_array())
                     .unwrap_or(&vec![])
-                    .into_iter()
+                    .iter()
                     .filter_map(|target| target.as_str().map(|it| it.to_string()))
                     .collect_vec(),
             ),

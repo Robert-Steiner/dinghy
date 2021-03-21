@@ -52,7 +52,7 @@ impl RegularPlatform {
                     sysroot: Some("/".into()),
                     cc: "gcc".to_string(),
                     binutils_prefix: prefix.clone(),
-                    cc_prefix: prefix.clone(),
+                    cc_prefix: prefix,
                 },
             }));
         }
@@ -82,9 +82,7 @@ impl RegularPlatform {
             }
         }
         let bin_dir = bin.ok_or_else(|| anyhow!("no bin/*-gcc found in toolchain"))?;
-        let tc_triple = prefix
-            .ok_or_else(|| anyhow!("no gcc in toolchain"))?
-            .to_string();
+        let tc_triple = prefix.ok_or_else(|| anyhow!("no gcc in toolchain"))?;
         let sysroot = find_sysroot(&toolchain_path)?;
 
         let toolchain = ToolchainConfig {
@@ -157,7 +155,7 @@ impl Platform for RegularPlatform {
         trace!("Setup linker...");
 
         let mut linker_cmd = self.toolchain.cc_executable(&*self.toolchain.cc);
-        linker_cmd.push_str(" ");
+        linker_cmd.push(' ');
         if build_args.verbose {
             linker_cmd.push_str("-Wl,--verbose -v")
         }
