@@ -20,8 +20,8 @@ use dinghy_lib::Platform;
 use std::env;
 use std::env::current_dir;
 use std::sync::Arc;
-use std::thread;
-use std::time;
+
+
 
 mod cli;
 

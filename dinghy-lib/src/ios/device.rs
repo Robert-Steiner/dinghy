@@ -9,27 +9,21 @@ use crate::BuildBundle;
 use crate::Device;
 use crate::DeviceCompatibility;
 use crate::Runnable;
-use core_foundation::array::CFArray;
-use core_foundation::base::{CFType, CFTypeRef, ItemRef, TCFType};
+use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::data::CFData;
-use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
+use core_foundation::dictionary::CFDictionary;
 use core_foundation::number::CFNumber;
 use core_foundation::string::CFString;
 use core_foundation_sys::number::kCFBooleanTrue;
-use libc::*;
-use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fs;
 use std::mem;
 use std::path::Path;
-use std::path::PathBuf;
 use std::process;
 use std::ptr;
-use std::thread;
-use std::time::Duration;
 
 #[derive(Clone, Debug)]
 pub struct IosDevice {
