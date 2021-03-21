@@ -92,10 +92,6 @@ impl Device for HostDevice {
         self.compiler.run(&self.platform, &build.build_args, &*args)?;
         Ok(build_bundles)
     }
-
-    fn start_remote_lldb(&self) -> Result<String> {
-        unimplemented!()
-    }
 }
 
 impl Debug for HostDevice {

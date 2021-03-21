@@ -125,15 +125,14 @@ impl Device for IosDevice {
             .next()
             .ok_or_else(|| anyhow!("No executable compiled"))?;
         let build_bundle = self.install_app(project, build, runnable)?;
-        let lldb_proxy = self.start_remote_lldb()?;
-        run_remote(
-            self.ptr,
-            &lldb_proxy,
-            &build_bundle.bundle_dir,
-            args,
-            envs,
-            true,
-        )?;
+
+        process::Command::new("ios-deploy")
+            .args(&["--args", &args.join(" ")])
+            .args(&["--envs", &envs.join(" ")])
+            .args(&["--noninteractive", " --debug", "--bundle"])
+            .arg(&build_bundle.bundle_dir)
+            .status()?;
+
         Ok(build_bundle)
     }
 
@@ -155,28 +154,16 @@ impl Device for IosDevice {
         let mut build_bundles = vec![];
         for runnable in &build.runnables {
             let build_bundle = self.install_app(&project, &build, &runnable)?;
-            let lldb_proxy = self.start_remote_lldb()?;
-            run_remote(
-                self.ptr,
-                &lldb_proxy,
-                &build_bundle.bundle_dir,
-                args,
-                envs,
-                false,
-            )?;
+            process::Command::new("ios-deploy")
+                .args(&["--args", &args.join(" ")])
+                .args(&["--envs", &envs.join(" ")])
+                .args(&["--noninteractive", " --debug", "--bundle"])
+                .arg(&build_bundle.bundle_dir)
+                .status()?;
+
             build_bundles.push(build_bundle)
         }
         Ok(build_bundles)
-    }
-
-    fn start_remote_lldb(&self) -> Result<String> {
-        let _ = ensure_session(self.ptr);
-        let fd = start_remote_debug_server(self.ptr)?;
-        debug!("start local lldb proxy");
-        let proxy = start_lldb_proxy(fd)?;
-        let url = format!("localhost:{}", proxy);
-        debug!("started lldb proxy {}", url);
-        Ok(url)
     }
 }
 
@@ -268,10 +255,6 @@ impl Device for IosSimDevice {
             build_bundles.push(build_bundle);
         }
         Ok(build_bundles)
-    }
-
-    fn start_remote_lldb(&self) -> Result<String> {
-        unimplemented!()
     }
 }
 
@@ -389,99 +372,6 @@ fn device_read_value(dev: *const am_device, key: &str) -> Result<Option<Value>> 
     }
 }
 
-fn xcode_dev_path() -> Result<PathBuf> {
-    use std::process::Command;
-    let command = Command::new("xcode-select").arg("-print-path").output()?;
-    Ok(String::from_utf8(command.stdout)?.trim().into())
-}
-
-fn device_support_path(dev: *const am_device) -> Result<PathBuf> {
-    let os_version = device_read_value(dev, "ProductVersion")?
-        .ok_or_else(|| anyhow!("Could not get OS version"))?;
-    if let Value::String(v) = os_version {
-        platform_support_path("iPhoneOS.platform", &v)
-    } else {
-        bail!(
-            "expected ProductVersion to be a String, found {:?}",
-            os_version
-        )
-    }
-}
-
-fn platform_support_path(platform: &str, os_version: &str) -> Result<PathBuf> {
-    let prefix = xcode_dev_path()?
-        .join("Platforms")
-        .join(platform)
-        .join("DeviceSupport");
-    debug!(
-        "Looking for device support directory in {:?} for iOS version {:?}",
-        prefix, os_version
-    );
-    let two_token_version: String = os_version
-        .split(".")
-        .take(2)
-        .collect::<Vec<_>>()
-        .join(".")
-        .into();
-    for directory in fs::read_dir(&prefix)? {
-        let directory = directory?;
-        let last = directory
-            .file_name()
-            .into_string()
-            .map_err(|e| anyhow!("Could not parse {:?}", e))?;
-        if last.starts_with(&two_token_version) {
-            debug!("Picked {:?}", last);
-            return Ok(prefix.join(directory.path()));
-        }
-    }
-    bail!(
-        "No device support directory for iOS version {} in {:?}. Time for an XCode \
-         update?",
-        two_token_version,
-        prefix
-    )
-}
-
-extern "C" fn mount_callback(_dict: CFDictionaryRef, _arg: *mut libc::c_void) {}
-
-fn mount_developper_image(dev: *const am_device) -> Result<()> {
-    unsafe {
-        let _session = ensure_session(dev);
-        let ds_path = device_support_path(dev)?;
-        let image_path = ds_path.join("DeveloperDiskImage.dmg");
-        debug!("Developper image path: {:?}", image_path);
-        let sig_image_path = ds_path.join("DeveloperDiskImage.dmg.signature");
-        let sig = fs::read(sig_image_path)?;
-        let sig = CFData::from_buffer(&sig);
-
-        let options = [
-            (
-                CFString::from_static_string("ImageType"),
-                CFString::from_static_string("Developper").as_CFType(),
-            ),
-            (
-                CFString::from_static_string("ImageSignature"),
-                sig.as_CFType(),
-            ),
-        ];
-        let options = CFDictionary::from_CFType_pairs(&options);
-        let r = AMDeviceMountImage(
-            dev,
-            CFString::new(image_path.to_str().unwrap()).as_concrete_TypeRef(),
-            options.as_concrete_TypeRef(),
-            mount_callback,
-            0,
-        );
-        debug!("AMDeviceMountImage returns: {:x}", r);
-        if r as u32 == 0xe8000076 {
-            debug!("Error, already mounted, going on");
-            return Ok(());
-        }
-        mk_result(r)?;
-        Ok(())
-    }
-}
-
 fn make_ios_app(
     project: &Project,
     build: &Build,
@@ -577,137 +467,6 @@ pub fn install_app<P: AsRef<Path>>(dev: *const am_device, app: P) -> Result<()> 
         ))?;
     }
     Ok(())
-}
-
-fn start_remote_debug_server(dev: *const am_device) -> Result<c_int> {
-    unsafe {
-        debug!("mount developper image");
-        mount_developper_image(dev)?;
-        debug!("start debugserver on phone");
-        let _session = ensure_session(dev)?;
-        let mut handle: *const c_void = std::ptr::null();
-        mk_result(AMDeviceSecureStartService(
-            dev,
-            CFString::from_static_string("com.apple.debugserver").as_concrete_TypeRef(),
-            ptr::null_mut(),
-            &mut handle,
-        ))?;
-        debug!("debug server running");
-
-        let fd = AMDServiceConnectionGetSocket(handle);
-        Ok(fd)
-    }
-}
-
-fn start_lldb_proxy(fd: c_int) -> Result<u16> {
-    use std::io::{Read, Write};
-    use std::net::{TcpListener, TcpStream};
-    use std::os::unix::io::FromRawFd;
-    let device = unsafe { TcpStream::from_raw_fd(fd) };
-    let proxy = TcpListener::bind("127.0.0.1:0")?;
-    let addr = proxy.local_addr()?;
-    device.set_nonblocking(true)?;
-    thread::spawn(move || {
-        fn server(proxy: TcpListener, mut device: TcpStream) -> Result<()> {
-            for stream in proxy.incoming() {
-                let mut stream = stream.expect("Failure while accepting connection");
-                stream.set_nonblocking(true)?;
-                let mut buffer = [0; 16384];
-                loop {
-                    if let Ok(n) = device.read(&mut buffer) {
-                        if n == 0 {
-                            break;
-                        }
-                        stream.write_all(&buffer[0..n])?;
-                    } else if let Ok(n) = stream.read(&mut buffer) {
-                        if n == 0 {
-                            break;
-                        }
-                        device.write_all(&buffer[0..n])?;
-                    } else {
-                        thread::sleep(Duration::new(0, 100));
-                    }
-                }
-            }
-            Ok(())
-        }
-        server(proxy, device).unwrap();
-    });
-    Ok(addr.port())
-}
-
-fn launch_lldb_device<P: AsRef<Path>, P2: AsRef<Path>>(
-    dev: *const am_device,
-    proxy: &str,
-    local: P,
-    remote: P2,
-    args: &[&str],
-    envs: &[&str],
-    debugger: bool,
-) -> Result<()> {
-    use std::io::Write;
-    use std::process::Command;
-    let _session = ensure_session(dev);
-    let dir = ::tempdir::TempDir::new("mobiledevice-rs-lldb")?;
-    let tmppath = dir.path();
-    let lldb_script_filename = tmppath.join("lldb-script");
-    let sysroot = device_support_path(dev)?
-        .to_str()
-        .ok_or_else(|| anyhow!("could not read sysroot"))?
-        .to_owned();
-    {
-        let python_lldb_support = tmppath.join("helpers.py");
-        let helper_py = include_str!("helpers.py");
-        let helper_py = helper_py.replace("ENV_VAR_PLACEHOLDER", &envs.join("\", \""));
-        fs::File::create(&python_lldb_support)?.write_fmt(format_args!("{}", &helper_py))?;
-        let mut script = fs::File::create(&lldb_script_filename)?;
-        writeln!(script, "platform select remote-ios --sysroot '{}'", sysroot)?;
-        writeln!(
-            script,
-            "target create {}",
-            local
-                .as_ref()
-                .to_str()
-                .ok_or_else(|| anyhow!("untranslatable path"))?
-        )?;
-        writeln!(script, "script pass")?;
-
-        writeln!(script, "command script import {:?}", python_lldb_support)?;
-        writeln!(
-            script,
-            "command script add -f helpers.set_remote_path set_remote_path"
-        )?;
-        writeln!(
-            script,
-            "command script add -f helpers.connect_command connect"
-        )?;
-        writeln!(
-            script,
-            "command script add -s synchronous -f helpers.start start"
-        )?;
-
-        writeln!(script, "connect connect://{}", proxy)?;
-        writeln!(
-            script,
-            "set_remote_path {}",
-            remote.as_ref().to_str().unwrap()
-        )?;
-        if !debugger {
-            writeln!(script, "start {}", args.join(" "))?;
-            writeln!(script, "quit")?;
-        }
-    }
-
-    let stat = Command::new("lldb")
-        .arg("-Q")
-        .arg("-s")
-        .arg(lldb_script_filename)
-        .status()?;
-    if stat.success() {
-        Ok(())
-    } else {
-        bail!("LLDB returned error code {:?}", stat.code())
-    }
 }
 
 fn launch_app(dev: &IosSimDevice, app_args: &[&str], _envs: &[&str]) -> Result<()> {
@@ -844,121 +603,4 @@ fn launch_lldb_simulator(
     } else {
         bail!("LLDB returned error code {:?}", stat.code())
     }
-}
-
-pub fn run_remote<P: AsRef<Path>>(
-    dev: *const am_device,
-    lldb_proxy: &str,
-    app_path: P,
-    args: &[&str],
-    envs: &[&str],
-    debugger: bool,
-) -> Result<()> {
-    let _session = ensure_session(dev)?;
-    let plist = plist::Value::from_file(app_path.as_ref().join("Info.plist"))?;
-    let bundle_id = plist
-        .as_dictionary()
-        .and_then(|btreemap| btreemap.get("CFBundleIdentifier"))
-        .and_then(|bi| bi.as_string())
-        .expect("failed to read CFBundleIdentifier");
-
-    let options = [(
-        CFString::from_static_string("ReturnAttributes"),
-        CFArray::from_CFTypes(&[
-            CFString::from_static_string("CFBundleIdentifier"),
-            CFString::from_static_string("Path"),
-        ]),
-    )];
-    let options = CFDictionary::from_CFType_pairs(&options);
-    let apps: CFDictionaryRef = ptr::null();
-    unsafe {
-        mk_result(AMDeviceLookupApplications(
-            dev,
-            options.as_concrete_TypeRef(),
-            std::mem::transmute(&apps),
-        ))?;
-    }
-    let apps: CFDictionary<CFString, CFDictionary<CFString, CFTypeRef>> =
-        unsafe { TCFType::wrap_under_get_rule(apps) };
-    let app_info: ItemRef<CFDictionary<CFString, CFTypeRef>> =
-        apps.get(CFString::new(bundle_id).as_concrete_TypeRef());
-    let remote: String = if let Ok(Value::String(remote)) =
-        rustify(*app_info.get(CFString::from_static_string("Path")))
-    {
-        remote
-    } else {
-        bail!("Invalid info")
-    };
-    launch_lldb_device(dev, lldb_proxy, app_path, remote, args, envs, debugger)?;
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn properties(dev: *const am_device) -> Result<HashMap<&'static str, Value>> {
-    let properties = [
-        "ActivationPublicKey",
-        "ActivationState",
-        "ActivationStateAcknowledged",
-        "ActivityURL",
-        "BasebandBootloaderVersion",
-        "BasebandSerialNumber",
-        "BasebandStatus",
-        "BasebandVersion",
-        "BluetoothAddress",
-        "BuildVersion",
-        "CPUArchitecture",
-        "DeviceCertificate",
-        "DeviceClass",
-        "DeviceColor",
-        "DeviceName",
-        "DevicePublicKey",
-        "DieID",
-        "FirmwareVersion",
-        "HardwareModel",
-        "HardwarePlatform",
-        "HostAttached",
-        "IMLockdownEverRegisteredKey",
-        "IntegratedCircuitCardIdentity",
-        "InternationalMobileEquipmentIdentity",
-        "InternationalMobileSubscriberIdentity",
-        "iTunesHasConnected",
-        "MLBSerialNumber",
-        "MobileSubscriberCountryCode",
-        "MobileSubscriberNetworkCode",
-        "ModelNumber",
-        "PartitionType",
-        "PasswordProtected",
-        "PhoneNumber",
-        "ProductionSOC",
-        "ProductType",
-        "ProductVersion",
-        "ProtocolVersion",
-        "ProximitySensorCalibration",
-        "RegionInfo",
-        "SBLockdownEverRegisteredKey",
-        "SerialNumber",
-        "SIMStatus",
-        "SoftwareBehavior",
-        "SoftwareBundleVersion",
-        "SupportedDeviceFamilies",
-        "TelephonyCapability",
-        "TimeIntervalSince1970",
-        "TimeZone",
-        "TimeZoneOffsetFromUTC",
-        "TrustedHostAttached",
-        "UniqueChipID",
-        "UniqueDeviceID",
-        "UseActivityURL",
-        "UseRaptorCerts",
-        "Uses24HourClock",
-        "WeDelivered",
-        "WiFiAddress",
-    ];
-    let mut props = HashMap::new();
-    for p in properties.iter() {
-        if let Some(v) = device_read_value(dev, p)? {
-            props.insert(*p, v);
-        }
-    }
-    Ok(props)
 }

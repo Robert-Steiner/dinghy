@@ -83,7 +83,7 @@ fn run_command(args: &ArgMatches) -> Result<()> {
         ("build", Some(sub_args)) => build(&platform, &project, args, sub_args).and(Ok(())),
         ("clean", Some(_)) => compiler.clean(&**platform),
         ("devices", Some(_)) => show_all_devices_for_platform(&dinghy, platform),
-        ("lldbproxy", Some(_)) => run_lldb(device),
+
         ("run", Some(sub_args)) => prepare_and_run(device, project, platform, args, sub_args),
         ("test", Some(sub_args)) => prepare_and_run(device, project, platform, args, sub_args),
         (sub, _) => bail!("Unknown dinghy command '{}'", sub),
@@ -142,24 +142,11 @@ fn prepare_and_run(
     Ok(())
 }
 
-fn run_lldb(device: Option<Arc<Box<dyn Device>>>) -> Result<()> {
-    let device = device.ok_or_else(|| anyhow!("No device found"))?;
-    let lldb = device.start_remote_lldb()?;
-    info!("lldb running at: {}", lldb);
-    loop {
-        thread::sleep(time::Duration::from_millis(100));
-    }
-}
-
 fn show_all_platforms(dinghy: &Dinghy) -> Result<()> {
     let mut platforms = dinghy.platforms();
     platforms.sort_by(|str1, str2| str1.id().cmp(&str2.id()));
     for pf in platforms.iter() {
-        println!(
-            "* {} {}",
-            pf.id(),
-            pf.rustc_triple()
-        );
+        println!("* {} {}", pf.id(), pf.rustc_triple());
     }
     Ok(())
 }

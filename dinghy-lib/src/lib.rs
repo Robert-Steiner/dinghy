@@ -181,8 +181,6 @@ pub trait Device: std::fmt::Debug + Display + DeviceCompatibility {
         args: &[&str],
         envs: &[&str],
     ) -> Result<Vec<BuildBundle>>;
-
-    fn start_remote_lldb(&self) -> Result<String>;
 }
 
 pub trait DeviceCompatibility {

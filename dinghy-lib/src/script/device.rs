@@ -100,10 +100,6 @@ impl Device for ScriptDevice {
         }
         Ok(build_bundles)
     }
-
-    fn start_remote_lldb(&self) -> Result<String> {
-        unimplemented!()
-    }
 }
 
 impl DeviceCompatibility for ScriptDevice {
