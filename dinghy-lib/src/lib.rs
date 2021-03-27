@@ -16,8 +16,6 @@ mod android;
 mod host;
 #[cfg(target_os = "macos")]
 mod ios;
-mod script;
-mod ssh;
 mod toolchain;
 
 pub mod compiler;
@@ -47,12 +45,7 @@ impl Dinghy {
         if let Some(man) = android::AndroidManager::probe(sync::Arc::clone(compiler)) {
             managers.push(Box::new(man));
         }
-        if let Some(man) = script::ScriptDeviceManager::probe(conf.clone()) {
-            managers.push(Box::new(man));
-        }
-        if let Some(man) = ssh::SshDeviceManager::probe(conf.clone()) {
-            managers.push(Box::new(man));
-        }
+
         #[cfg(target_os = "macos")]
         {
             std::thread::sleep(std::time::Duration::from_millis(100));

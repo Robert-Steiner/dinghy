@@ -1,17 +1,24 @@
 use std::{
     fmt,
     fmt::{Display, Formatter},
-    fs,
-    path::Path,
-    process,
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+    process::Command,
+    u32,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Error, Result};
 use log::debug;
+use simctl::{get_app_container::Container, Device as SimDevice};
+use tempdir::TempDir;
 use tinytemplate::TinyTemplate;
 
 use crate::{
-    ios::IosPlatform,
+    ios::{
+        tools::{lldb, xcrun},
+        IosPlatform,
+    },
     project::Project,
     Build,
     BuildBundle,
@@ -23,43 +30,30 @@ use crate::{
 use super::utils::*;
 
 #[derive(Clone, Debug)]
-pub struct IosSimDevice {
-    pub id: String,
-    pub name: String,
-    pub os: String,
+pub struct Simulator {
+    device: SimDevice,
 }
 
-impl IosSimDevice {
+impl Simulator {
+    pub fn new(device: SimDevice) -> Self {
+        Self { device }
+    }
+
     fn install_app(
         &self,
         project: &Project,
         build: &Build,
         runnable: &Runnable,
     ) -> Result<BuildBundle> {
-        let build_bundle = IosSimDevice::make_app(project, build, runnable)?;
-        let _ = process::Command::new("xcrun")
-            .args(&["simctl", "uninstall", &self.id, "Dinghy"])
-            .status()?;
-        let stat = process::Command::new("xcrun")
-            .args(&[
-                "simctl",
-                "install",
-                &self.id,
-                build_bundle
-                    .bundle_dir
-                    .to_str()
-                    .ok_or_else(|| anyhow!("conversion to string"))?,
-            ])
-            .status()?;
-        if stat.success() {
-            Ok(build_bundle)
-        } else {
-            bail!(
-                "Failed to install {} for {}",
-                runnable.exe.display(),
-                self.id
-            )
-        }
+        let build_bundle = Simulator::make_app(project, build, runnable)?;
+
+        self.device.uninstall("Dinghy").map_err(|_| anyhow!(""))?;
+        let path = build_bundle.bundle_dir.clone();
+        self.device
+            .install(path.as_path())
+            .map_err(|_| anyhow!(""))?;
+
+        Ok(build_bundle)
     }
 
     fn make_app(project: &Project, build: &Build, runnable: &Runnable) -> Result<BuildBundle> {
@@ -67,7 +61,7 @@ impl IosSimDevice {
     }
 }
 
-impl Device for IosSimDevice {
+impl Device for Simulator {
     fn clean_app(&self, _build_bundle: &BuildBundle) -> Result<()> {
         unimplemented!()
     }
@@ -84,22 +78,27 @@ impl Device for IosSimDevice {
             .get(0)
             .ok_or_else(|| anyhow!("No executable compiled"))?;
         let build_bundle = self.install_app(project, build, runnable)?;
-        let install_path = String::from_utf8(
-            process::Command::new("xcrun")
-                .args(&["simctl", "get_app_container", &self.id, "Dinghy"])
-                .output()?
-                .stdout,
+        let install_path = self
+            .device
+            .get_app_container("Dinghy", &Container::App)
+            .map_err(|_| anyhow!(""))?;
+
+        launch_lldb_simulator(
+            &self,
+            install_path.to_str().ok_or(anyhow!(""))?,
+            args,
+            envs,
+            true,
         )?;
-        launch_lldb_simulator(&self, &install_path, args, envs, true)?;
         Ok(build_bundle)
     }
 
     fn id(&self) -> &str {
-        &self.id
+        &self.device.udid
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.device.name
     }
 
     fn run_app(
@@ -119,116 +118,39 @@ impl Device for IosSimDevice {
     }
 }
 
-impl Display for IosSimDevice {
+impl Display for Simulator {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         fmt.write_fmt(format_args!(
-            "IosSimDevice {{ \"id\": \"{}\", \"name\": {}, \"os\": {} }}",
-            self.id, self.name, self.os
+            "Simulator {{ \"id\": \"{}\", \"name\": {} }}",
+            self.id(),
+            self.name(),
         ))
     }
 }
 
-impl DeviceCompatibility for IosSimDevice {
+impl DeviceCompatibility for Simulator {
     fn is_compatible_with_ios_platform(&self, platform: &IosPlatform) -> bool {
         platform.sim && platform.toolchain.rustc_triple == "x86_64-apple-ios"
     }
 }
 
-fn launch_app(dev: &IosSimDevice, app_args: &[&str], _envs: &[&str]) -> Result<()> {
-    use std::io::Write;
-    let dir = ::tempdir::TempDir::new("mobiledevice-rs-lldb")?;
-    let tmppath = dir.path();
-    let mut install_path = String::from_utf8(
-        process::Command::new("xcrun")
-            .args(&["simctl", "get_app_container", &dev.id, "Dinghy"])
-            .output()?
-            .stdout,
-    )?;
-    install_path.pop();
-    let stdout = Path::new(&install_path)
-        .join("stdout")
-        .to_string_lossy()
-        .into_owned();
-    let stdout_param = &format!("--stdout={}", stdout);
-    let mut xcrun_args: Vec<&str> = vec!["simctl", "launch", "-w", stdout_param, &dev.id, "Dinghy"];
-    xcrun_args.extend(app_args);
-    debug!("Launching app via xcrun using args: {:?}", xcrun_args);
-    let launch_output = process::Command::new("xcrun").args(&xcrun_args).output()?;
-    let launch_output = String::from_utf8_lossy(&launch_output.stdout);
-
-    // Output from the launch command should be "Dinghy: $PID" which is after the 8th character.
-    let dinghy_pid = launch_output.split_at(8).1;
-
-    // Attaching to the processes needs to be done in a script, not a commandline parameter or
-    // lldb will say "no simulators found".
-    let lldb_script_filename = tmppath.join("lldb-script");
-    let mut script = fs::File::create(&lldb_script_filename)?;
-    writeln!(script, "attach {}", dinghy_pid)?;
-    writeln!(script, "continue")?;
-    writeln!(script, "quit")?;
-    let output = process::Command::new("lldb")
-        .arg("")
-        .arg("-s")
-        .arg(lldb_script_filename)
-        .output()?;
-    let test_contents = std::fs::read_to_string(stdout)?;
-    println!("{}", test_contents);
-
-    let output: String = String::from_utf8_lossy(&output.stdout).to_string();
-    debug!("LLDB OUTPUT: {}", output);
-    // The stdout from lldb is something like:
-    //
-    // (lldb) attach 34163
-    // Process 34163 stopped
-    // * thread #1, stop reason = signal SIGSTOP
-    //     frame #0: 0x00000001019cd000 dyld`_dyld_start
-    // dyld`_dyld_start:
-    // ->  0x1019cd000 <+0>: popq   %rdi
-    //     0x1019cd001 <+1>: pushq  $0x0
-    //     0x1019cd003 <+3>: movq   %rsp, %rbp
-    //     0x1019cd006 <+6>: andq   $-0x10, %rsp
-    // Target 0: (Dinghy) stopped.
-    //
-    // Executable module set to .....
-    // Architecture set to: x86_64h-apple-ios-.
-    // (lldb) continue
-    // Process 34163 resuming
-    // Process 34163 exited with status = 101 (0x00000065)
-    //
-    // (lldb) quit
-    //
-    // We need the "exit with status" line which is the 3rd from the last
-    let lines: Vec<&str> = output.lines().rev().collect();
-    let exit_status_line = lines.get(2);
-    if let Some(exit_status_line) = exit_status_line {
-        let words: Vec<&str> = exit_status_line.split_whitespace().rev().collect();
-        if let Some(exit_status) = words.get(1) {
-            let exit_status = exit_status.parse::<u32>()?;
-            if exit_status == 0 {
-                Ok(())
-            } else {
-                panic!("Non-zero exit code from lldb: {}", exit_status);
-            }
-        } else {
-            panic!(
-                "Failed to parse lldb exit line for an exit status. {:?}",
-                words
-            );
-        }
-    } else {
-        panic!("Failed to get the exit status line from lldb: {:?}", lines);
-    }
+fn launch_app(dev: &Simulator, app_args: &[&str], _envs: &[&str]) -> Result<()> {
+    let dinghy_pid = xcrun::launch_app(dev.id(), "Dinghy", app_args)?;
+    debug!("dinghy_pid {:?}", dinghy_pid);
+    let (lldb_path, guard) = create_lldb_script(&dinghy_pid)?;
+    let output = lldb::run_source(&lldb_path)?;
+    guard.close()?;
+    extract_lldb_exit_status(&output.stdout).map(|_| ())
 }
 
 fn launch_lldb_simulator(
-    dev: &IosSimDevice,
+    dev: &Simulator,
     installed: &str,
     args: &[&str],
     envs: &[&str],
     debugger: bool,
 ) -> Result<()> {
-    use std::{io::Write, process::Command};
-    let dir = ::tempdir::TempDir::new("mobiledevice-rs-lldb")?;
+    let dir = TempDir::new("mobiledevice-rs-lldb")?;
     let tmppath = dir.path();
     let lldb_script_filename = tmppath.join("lldb-script");
     {
@@ -236,7 +158,7 @@ fn launch_lldb_simulator(
         let helper_py = include_str!("../helpers.py");
         let helper_py = helper_py.replace("ENV_VAR_PLACEHOLDER", &envs.join("\", \""));
         fs::File::create(&python_lldb_support)?.write_fmt(format_args!("{}", &helper_py))?;
-        let mut script = fs::File::create(&lldb_script_filename)?;
+        let mut script = File::create(&lldb_script_filename)?;
 
         let mut tt = TinyTemplate::new();
         tt.add_template("lldb_script", TEMPLATE)?;
@@ -244,7 +166,7 @@ fn launch_lldb_simulator(
             installed: installed.to_string(),
             python_lldb_support: python_lldb_support.to_string_lossy().to_string(),
             debugger,
-            id: dev.id.clone(),
+            id: dev.id().to_string(),
             args: args.join(" "),
         };
         let rendered = tt.render("lldb_script", &context)?;
@@ -261,6 +183,70 @@ fn launch_lldb_simulator(
         Ok(())
     } else {
         bail!("LLDB returned error code {:?}", stat.code())
+    }
+}
+
+fn create_lldb_script(app_pid: &str) -> Result<(PathBuf, TempDir), Error> {
+    // Attaching to the processes needs to be done in a script, not a
+    // commandline parameter or lldb will say "no simulators found".
+    let temp_dir = TempDir::new("mobiledevice-rs-lldb")?;
+    let path = temp_dir.path().join("lldb-script");
+
+    let mut file = File::create(&path)?;
+    file.write_fmt(format_args!(
+        include_str!("../templates/lldb.tmpl"),
+        app_pid = app_pid,
+    ))?;
+
+    debug!("lldb-script path: {:?}", path);
+    Ok((path, temp_dir))
+}
+
+fn extract_lldb_exit_status(stdout: &Vec<u8>) -> Result<u32, Error> {
+    let output = String::from_utf8_lossy(stdout).to_string();
+
+    debug!("LLDB output:\n{}", output);
+    /*
+    The stdout from lldb is something like:
+
+    (lldb) attach 34163
+    Process 34163 stopped
+    * thread #1, stop reason = signal SIGSTOP
+        frame #0: 0x00000001019cd000 dyld`_dyld_start
+    dyld`_dyld_start:
+    ->  0x1019cd000 <+0>: popq   %rdi
+        0x1019cd001 <+1>: pushq  x0
+        0x1019cd003 <+3>: movq   %rsp, %rbp
+        0x1019cd006 <+6>: andq   $-0x10, %rsp
+    Target 0: (Dinghy) stopped.
+
+    Executable module set to .....
+    Architecture set to: x86_64h-apple-ios-.
+    (lldb) continue
+    Process 34163 resuming
+    Process 34163 exited with status = 101 (0x00000065)
+
+    (lldb) quit
+
+    We need the "exit with status" line which is the 3rd from the last
+    */
+    let exit_status_line: Option<&str> = output.lines().rev().skip(3).next();
+    let tokens: Vec<&str> = if let Some(exit_status_line) = exit_status_line {
+        exit_status_line.split_whitespace().rev().collect()
+    } else {
+        bail!(
+            "Failed to get the exit status line from lldb: {:?}",
+            exit_status_line
+        );
+    };
+
+    if let Some(exit_status) = tokens.get(1) {
+        exit_status.parse::<u32>().map_err(|err| anyhow!("{}", err))
+    } else {
+        bail!(
+            "Failed to parse lldb exit line for an exit status. {:?}",
+            tokens
+        )
     }
 }
 

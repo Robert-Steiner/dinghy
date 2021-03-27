@@ -1,9 +1,15 @@
-use std::{fs, io, io::Write, process};
+use std::{
+    fs,
+    io,
+    io::Write,
+    process::{self, Command},
+};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use log::{debug, trace};
+use openssl::{nid::Nid, string::OpensslString, x509::X509};
 use plist;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::BuildBundle;
 
@@ -23,9 +29,19 @@ pub struct SigningIdentity {
     pub team: String,
 }
 
+#[derive(Deserialize, Debug)]
+struct MobileProvision {
+    #[serde(rename = "ProvisionedDevices")]
+    provisioned_devices: Vec<String>,
+    #[serde(rename = "TeamIdentifier")]
+    team_identifier: Vec<String>,
+    #[serde(rename = "Name")]
+    name: String,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[allow(non_snake_case)]
-pub struct AppPlist<'a> {
+pub struct AppInfoPlist<'a> {
     CFBundleExecutable: &'static str,
     CFBundleIdentifier: &'a str,
     UIRequiredDeviceCapabilities: Vec<&'a str>,
@@ -33,11 +49,11 @@ pub struct AppPlist<'a> {
     CFBundleShortVersionString: &'a str,
 }
 
-pub fn add_plist_to_app(bundle: &BuildBundle, arch: &str, app_bundle_id: &str) -> Result<()> {
+pub fn create_plist_for_app(bundle: &BuildBundle, arch: &str, app_bundle_id: &str) -> Result<()> {
     let plist = fs::File::create(bundle.bundle_dir.join("Info.plist"))?;
     plist::to_writer_xml(
         plist,
-        &AppPlist {
+        &AppInfoPlist {
             CFBundleExecutable: "Dinghy",
             CFBundleIdentifier: app_bundle_id,
             UIRequiredDeviceCapabilities: vec![arch],
@@ -46,40 +62,6 @@ pub fn add_plist_to_app(bundle: &BuildBundle, arch: &str, app_bundle_id: &str) -
         },
     )
     .map_err(|err| anyhow!(err))
-    /*
-    let app_name = app_bundle_id.split(".").last().unwrap();
-    let app_path = app_path.as_ref().join(format!("{}.app", app_name));
-    println!("WRAP AS APP: {:?} -> {:?}", executable.as_ref(), app_path);
-    let _ = fs::remove_dir_all(&app_path);
-    fs::create_dir_all(&app_path)?;
-    fs::copy(&executable, app_path.join(app_name))?;
-
-
-    let mut plist = fs::File::create(app_path.join("Info.plist"))?;
-    writeln!(plist, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
-    writeln!(plist, r#"<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">"#)?;
-    writeln!(plist, r#"<plist version="1.0"><dict>"#)?;
-    writeln!(
-        plist,
-        "<key>CFBundleExecutable</key><string>{}</string>",
-        app_name
-    )?;
-    writeln!(
-        plist,
-        "<key>CFBundleIdentifier</key><string>{}</string>",
-        app_bundle_id
-    )?;
-    writeln!(plist, "<key>UIRequiredDeviceCapabilities</key>")?;
-    writeln!(
-        plist,
-        "<array><string>{}</string></array>",
-        target.split("-").next().unwrap()
-    )?;
-    writeln!(plist, r#"</dict></plist>"#)?;
-
-    project.rec_copy(&source, &app_path, false)?;
-    project.copy_test_data(&app_path)?;
-    */
 }
 
 pub fn sign_app(bundle: &BuildBundle, settings: &SignatureSettings) -> Result<()> {
@@ -110,7 +92,7 @@ pub fn sign_app(bundle: &BuildBundle, settings: &SignatureSettings) -> Result<()
 
 pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSettings>> {
     let identity_regex = ::regex::Regex::new(r#"^ *[0-9]+\) ([A-Z0-9]{40}) "(.+)"$"#)?;
-    let subject_regex = ::regex::Regex::new(r#"OU=([^,]+)"#)?;
+
     let mut identities: Vec<SigningIdentity> = vec![];
     let find_identities = process::Command::new("security")
         .args(&["find-identity", "-v", "-p", "codesigning"])
@@ -121,22 +103,14 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             if !name.starts_with("iPhone Developer: ") && !name.starts_with("Apple Development:") {
                 continue;
             }
-            let subject = process::Command::new("sh")
-                .arg("-c")
-                .arg(format!(
-                    "security find-certificate -a -c \"{}\" -p | openssl x509 -text | \
-                     grep Subject:",
-                    name
-                ))
-                .output()?;
-            let subject = String::from_utf8(subject.stdout)?;
-            if let Some(ou) = subject_regex.captures(&subject) {
-                identities.push(SigningIdentity {
-                    id: caps[1].into(),
-                    name: caps[2].into(),
-                    team: ou[1].into(),
-                })
-            }
+
+            let subject = get_subject(&name)?;
+
+            identities.push(SigningIdentity {
+                id: caps[1].into(),
+                name: caps[2].into(),
+                team: subject.to_string(),
+            })
         }
     }
     debug!("signing identities: {:?}", identities);
@@ -157,6 +131,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             trace!("skipping profile (?) {:?}", file.path());
             continue;
         }
+
         debug!("considering profile {:?}", file.path());
         let decoded = process::Command::new("security")
             .arg("cms")
@@ -164,50 +139,33 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             .arg("-i")
             .arg(file.path())
             .output()?;
-        let plist = plist::Value::from_reader(io::Cursor::new(&decoded.stdout))
-            .with_context(|| format!("While trying to read profile {:?}", file.path()))?;
-        let dict = plist
-            .as_dictionary()
-            .ok_or_else(|| anyhow!("plist root should be a dictionary"))?;
-        let devices = if let Some(d) = dict.get("ProvisionedDevices") {
-            d
-        } else {
-            debug!("  no devices in profile");
-            continue;
-        };
-        let devices = if let Some(ds) = devices.as_array() {
-            ds
-        } else {
-            bail!("ProvisionedDevices expected to be array")
-        };
-        if !devices.contains(&plist::Value::String(device_id.into())) {
+
+        let mobile_provision: MobileProvision = plist::from_bytes(&decoded.stdout)?;
+        debug!("{:?}", mobile_provision);
+
+        if !mobile_provision
+            .provisioned_devices
+            .contains(&device_id.to_string())
+        {
             debug!("  no device match in profile");
             continue;
         }
-        let name = dict
-            .get("Name")
-            .ok_or_else(|| anyhow!(format!("No name in profile {:?}", file.path())))?;
-        let name = name
-            .as_string()
-            .ok_or_else(|| anyhow!("Name should have been a string in {:?}", file.path()))?;
-        if !name.ends_with("Dinghy") && !name.ends_with(" *") {
-            debug!("  app in profile does not match ({})", name);
+
+        if !mobile_provision.name.ends_with("Dinghy") {
+            debug!(
+                "  app in profile does not match ({})",
+                mobile_provision.name
+            );
             continue;
         }
+
         // TODO: check date in future
-        let team = dict
-            .get("TeamIdentifier")
-            .ok_or_else(|| anyhow!("no TeamIdentifier"))?;
-        let team = team
-            .as_array()
-            .ok_or_else(|| anyhow!("TeamIdentifier should be an array"))?;
-        let team = team
+        let team = mobile_provision
+            .team_identifier
             .first()
-            .ok_or_else(|| anyhow!("empty TeamIdentifier"))?
-            .as_string()
-            .ok_or_else(|| anyhow!("TeamIdentifier should be a String"))?
-            .to_string();
-        let identity = identities.iter().find(|i| i.team == team);
+            .ok_or_else(|| anyhow!("empty TeamIdentifier"))?;
+
+        let identity = identities.iter().find(|i| &i.team == team);
         if identity.is_none() {
             debug!("no identity for team");
             continue;
@@ -220,21 +178,38 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             .take_while(|line| !line.contains("</dict>"))
             .collect::<Vec<&str>>()
             .join("\n");
+
+        debug!("{}", entitlements);
+
+        let file = file
+            .path()
+            .to_str()
+            .ok_or_else(|| anyhow!("filename should be utf8"))?
+            .to_string();
+
         settings.push(SignatureSettings {
             entitlements,
-            file: file
-                .path()
-                .to_str()
-                .ok_or_else(|| anyhow!("filename should be utf8"))?
-                .into(),
-            name: if name.ends_with(" *") {
-                "org.zoy.kali.Dinghy".into()
-            } else {
-                name.into()
-            },
+            file: file.clone(),
+            name: mobile_provision.name,
             identity: identity.clone(),
-            profile: file.path().to_str().unwrap().into(),
+            profile: file.clone(),
         });
     }
     Ok(settings)
+}
+
+fn get_subject(name: &str) -> Result<String, Error> {
+    let cert = Command::new("security")
+        .args(&["find-certificate", "-a", "-c", &name, "-p"])
+        .output()?
+        .stdout;
+    let x509 = X509::from_pem(&cert)?;
+    let subject = x509
+        .subject_name()
+        .entries_by_nid(Nid::ORGANIZATIONALUNITNAME)
+        .next()
+        .unwrap()
+        .data()
+        .as_utf8()?;
+    Ok(subject.to_string())
 }

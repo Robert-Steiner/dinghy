@@ -34,6 +34,6 @@ pub fn make_ios_app(
         .last()
         .ok_or_else(|| anyhow!("empty magic"))?
         .trim();
-    xcode::add_plist_to_app(&build_bundle, target, app_id)?;
+    xcode::create_plist_for_app(&build_bundle, target, app_id)?;
     Ok(build_bundle)
 }
