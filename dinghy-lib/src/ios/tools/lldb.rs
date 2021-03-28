@@ -5,8 +5,10 @@ use std::{
 
 use anyhow::{anyhow, Error};
 
+const LLDB: &'static str = "lldb";
+
 pub fn run_source(source: &PathBuf) -> Result<Output, Error> {
-    Command::new("lldb")
+    Command::new(LLDB)
         .arg("-s")
         .arg(source)
         .output()

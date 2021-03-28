@@ -4,13 +4,14 @@ use anyhow::Result;
 use log::debug;
 
 use crate::{
-    ios::tools::{libimobiledevice, xcrun},
+    ios::tools::{ios_deploy, xcrun},
     Compiler,
     Device,
     Platform,
     PlatformManager,
 };
 
+use self::compiler::compile_test;
 pub use self::{
     device::{physical::Physical, simulator::Simulator},
     platform::IosPlatform,
@@ -19,9 +20,12 @@ pub use self::{
 mod command_ext;
 mod device;
 
+mod compiler;
 mod platform;
 mod tools;
 mod xcode;
+
+use compiler::Test;
 
 pub struct IosManager {
     compiler: Arc<Compiler>,
@@ -35,10 +39,19 @@ impl IosManager {
 
 impl PlatformManager for IosManager {
     fn devices(&self) -> Result<Vec<Box<dyn Device>>> {
+        let test = Test {
+            release: true,
+            targets: vec![String::from("aarch64-apple-ios")],
+            all_features: false,
+            no_default_features: false,
+            features: vec![],
+        };
+        compile_test(test);
+
         let mut devices = Vec::new();
 
-        if let Ok(id) = libimobiledevice::device_id() {
-            devices.push(Box::new(Physical::new(id)?) as Box<dyn Device>)
+        if let Some(device) = ios_deploy::list_device()? {
+            devices.push(Box::new(Physical::new(device)) as Box<dyn Device>)
         }
 
         let simulators = xcrun::list_booted_simulators()?

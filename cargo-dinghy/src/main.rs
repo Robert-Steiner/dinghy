@@ -56,14 +56,10 @@ fn main() {
 
 fn run_command(args: &ArgMatches) -> Result<()> {
     let conf = Arc::new(dinghy_config(current_dir().unwrap())?);
+
     let compiler = Arc::new(Compiler::from_args(args.subcommand().1.unwrap_or(args))?);
     let dinghy = Dinghy::probe(&conf, &compiler)?;
     let project = Project::new(&conf);
-    match args.subcommand() {
-        ("all-devices", Some(_)) => return show_all_devices(&dinghy),
-        ("all-platforms", Some(_)) => return show_all_platforms(&dinghy),
-        _ => {}
-    };
 
     let (platform, device) = select_platform_and_device_from_cli(&args, &dinghy)?;
     info!(
@@ -76,9 +72,6 @@ fn run_command(args: &ArgMatches) -> Result<()> {
         ("bench", Some(sub_args)) => prepare_and_run(device, project, platform, args, sub_args),
         ("build", Some(sub_args)) => build(&platform, &project, args, sub_args).and(Ok(())),
         ("clean", Some(_)) => compiler.clean(&**platform),
-        ("devices", Some(_)) => show_all_devices_for_platform(&dinghy, platform),
-
-        ("run", Some(sub_args)) => prepare_and_run(device, project, platform, args, sub_args),
         ("test", Some(sub_args)) => prepare_and_run(device, project, platform, args, sub_args),
         (sub, _) => bail!("Unknown dinghy command '{}'", sub),
     }
@@ -141,56 +134,6 @@ fn prepare_and_run(
     if sub_args.is_present("CLEANUP") {
         for build_bundle in build_bundles {
             device.clean_app(&build_bundle)?;
-        }
-    }
-    Ok(())
-}
-
-fn show_all_platforms(dinghy: &Dinghy) -> Result<()> {
-    let mut platforms = dinghy.platforms();
-    platforms.sort_by(|str1, str2| str1.id().cmp(&str2.id()));
-    for pf in platforms.iter() {
-        println!("* {} {}", pf.id(), pf.rustc_triple());
-    }
-    Ok(())
-}
-
-fn show_all_devices(dinghy: &Dinghy) -> Result<()> {
-    println!("List of available devices for all platforms:");
-    show_devices(&dinghy, None)
-}
-
-fn show_all_devices_for_platform(dinghy: &Dinghy, platform: Arc<Box<dyn Platform>>) -> Result<()> {
-    println!(
-        "List of available devices for platform '{}':",
-        platform.id()
-    );
-    show_devices(&dinghy, Some(platform))
-}
-
-fn show_devices(dinghy: &Dinghy, platform: Option<Arc<Box<dyn Platform>>>) -> Result<()> {
-    let devices = dinghy
-        .devices()
-        .into_iter()
-        .filter(|device| {
-            platform
-                .as_ref()
-                .map_or(true, |it| it.is_compatible_with(&***device))
-        })
-        .collect::<Vec<_>>();
-
-    if devices.is_empty() {
-        error!("No matching device found");
-        println!("No matching device found");
-    } else {
-        for device in devices {
-            let pf: Vec<_> = dinghy
-                .platforms()
-                .iter()
-                .filter(|pf| pf.is_compatible_with(&**device))
-                .cloned()
-                .collect();
-            println!("{}: {:?}", device, pf);
         }
     }
     Ok(())

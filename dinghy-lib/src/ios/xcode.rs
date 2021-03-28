@@ -1,17 +1,12 @@
-use std::{
-    fs,
-    io,
-    io::Write,
-    process::{self, Command},
-};
+use std::{fs, io::Write, process::Command};
 
-use anyhow::{anyhow, bail, Context, Error, Result};
+use anyhow::{anyhow, Error, Result};
 use log::{debug, trace};
-use openssl::{nid::Nid, string::OpensslString, x509::X509};
+use openssl::{nid::Nid, x509::X509};
 use plist;
 use serde::{Deserialize, Serialize};
 
-use crate::BuildBundle;
+use crate::{ios::tools::security, BuildBundle};
 
 #[derive(Debug, Clone)]
 pub struct SignatureSettings {
@@ -40,25 +35,30 @@ struct MobileProvision {
 }
 
 #[derive(Clone, Debug, Serialize)]
-#[allow(non_snake_case)]
-pub struct AppInfoPlist<'a> {
-    CFBundleExecutable: &'static str,
-    CFBundleIdentifier: &'a str,
-    UIRequiredDeviceCapabilities: Vec<&'a str>,
-    CFBundleVersion: &'a str,
-    CFBundleShortVersionString: &'a str,
+
+pub struct InfoPlist<'a> {
+    #[serde(rename = "CFBundleExecutable")]
+    cf_bundle_executable: &'a str,
+    #[serde(rename = "CFBundleIdentifier")]
+    cf_bundle_identifier: &'a str,
+    #[serde(rename = "UIRequiredDeviceCapabilities")]
+    ui_required_device_capabilities: Vec<&'a str>,
+    #[serde(rename = "CFBundleVersion")]
+    cf_bundle_version: &'a str,
+    #[serde(rename = "CFBundleShortVersionString")]
+    cf_bundle_short_version_string: &'a str,
 }
 
 pub fn create_plist_for_app(bundle: &BuildBundle, arch: &str, app_bundle_id: &str) -> Result<()> {
     let plist = fs::File::create(bundle.bundle_dir.join("Info.plist"))?;
     plist::to_writer_xml(
         plist,
-        &AppInfoPlist {
-            CFBundleExecutable: "Dinghy",
-            CFBundleIdentifier: app_bundle_id,
-            UIRequiredDeviceCapabilities: vec![arch],
-            CFBundleVersion: "1",
-            CFBundleShortVersionString: "1.0",
+        &InfoPlist {
+            cf_bundle_executable: "Dinghy",
+            cf_bundle_identifier: app_bundle_id,
+            ui_required_device_capabilities: vec![arch],
+            cf_bundle_version: "1",
+            cf_bundle_short_version_string: "1.0",
         },
     )
     .map_err(|err| anyhow!(err))
@@ -82,7 +82,7 @@ pub fn sign_app(bundle: &BuildBundle, settings: &SignatureSettings) -> Result<()
     writeln!(plist, "{}", settings.entitlements)?;
     writeln!(plist, r#"</dict></plist>"#)?;
 
-    process::Command::new("codesign")
+    Command::new("codesign")
         .args(&["-s", &*settings.identity.name, "--entitlements"])
         .arg(entitlements)
         .arg(&bundle.bundle_dir)
@@ -94,10 +94,8 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
     let identity_regex = ::regex::Regex::new(r#"^ *[0-9]+\) ([A-Z0-9]{40}) "(.+)"$"#)?;
 
     let mut identities: Vec<SigningIdentity> = vec![];
-    let find_identities = process::Command::new("security")
-        .args(&["find-identity", "-v", "-p", "codesigning"])
-        .output()?;
-    for line in String::from_utf8(find_identities.stdout)?.split('\n') {
+    let find_identities = security::find_identities()?.stdout;
+    for line in String::from_utf8(find_identities)?.split('\n') {
         if let Some(caps) = identity_regex.captures(&line) {
             let name: String = caps[2].into();
             if !name.starts_with("iPhone Developer: ") && !name.starts_with("Apple Development:") {
@@ -113,6 +111,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             })
         }
     }
+
     debug!("signing identities: {:?}", identities);
     let mut settings = vec![];
     for file in fs::read_dir(
@@ -133,14 +132,8 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
         }
 
         debug!("considering profile {:?}", file.path());
-        let decoded = process::Command::new("security")
-            .arg("cms")
-            .arg("-D")
-            .arg("-i")
-            .arg(file.path())
-            .output()?;
-
-        let mobile_provision: MobileProvision = plist::from_bytes(&decoded.stdout)?;
+        let decoded = security::decode_cms(&file.path())?.stdout;
+        let mobile_provision: MobileProvision = plist::from_bytes(&decoded)?;
         debug!("{:?}", mobile_provision);
 
         if !mobile_provision
@@ -171,7 +164,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
             continue;
         }
         let identity = identity.unwrap();
-        let entitlements = String::from_utf8(decoded.stdout)?
+        let entitlements = String::from_utf8(decoded)?
             .split('\n')
             .skip_while(|line| !line.contains("<key>Entitlements</key>"))
             .skip(2)
@@ -199,10 +192,7 @@ pub fn look_for_signature_settings(device_id: &str) -> Result<Vec<SignatureSetti
 }
 
 fn get_subject(name: &str) -> Result<String, Error> {
-    let cert = Command::new("security")
-        .args(&["find-certificate", "-a", "-c", &name, "-p"])
-        .output()?
-        .stdout;
+    let cert = security::find_certificate(name)?.stdout;
     let x509 = X509::from_pem(&cert)?;
     let subject = x509
         .subject_name()

@@ -216,12 +216,17 @@ fn create_build_command(
             target_rustc_args: None,
             local_rustdoc_args: None,
             rustdoc_document_private_items: false,
+            honor_rust_version: true,
         };
 
         if bearded {
             setup_dinghy_wrapper(&workspace, platform)?;
         }
         let compilation = ops::compile(&workspace, &compile_options)?;
+
+
+
+        
         let build = to_build(compilation, &config, build_args, platform)?;
         copy_dependencies_to_target(&build)?;
         Ok(build)
@@ -333,6 +338,7 @@ fn create_run_command(
                 target_rustc_args: None,
                 local_rustdoc_args: None,
                 rustdoc_document_private_items: false,
+                honor_rust_version: true,
             };
 
             let test_options = TestOptions {
@@ -441,18 +447,18 @@ fn to_build(
             runnables: compilation
                 .binaries
                 .iter()
-                .map(|exe_path| {
+                .map(|unit| {
                     Ok(Runnable {
-                        exe: exe_path.1.clone(),
-                        id: exe_path
-                            .1
+                        exe: unit.path.clone(),
+                        id: unit
+                            .path
                             .file_name()
                             .ok_or_else(|| {
-                                anyhow!("Invalid executable file '{}'", &exe_path.1.display())
+                                anyhow!("Invalid executable file '{}'", &unit.path.display())
                             })?
                             .to_str()
                             .ok_or_else(|| {
-                                anyhow!("Invalid executable file '{}'", &exe_path.1.display())
+                                anyhow!("Invalid executable file '{}'", &unit.path.display())
                             })?
                             .to_string(),
                         source: PathBuf::from("."),
@@ -468,20 +474,28 @@ fn to_build(
             runnables: compilation
                 .tests
                 .iter()
-                .map(|&(ref u, ref exe_path)| {
+                .map(|unit| {
                     Ok(Runnable {
-                        exe: exe_path.clone(),
-                        id: exe_path
+                        exe: unit.path.clone(),
+                        id: unit
+                            .path
                             .file_name()
                             .ok_or_else(|| {
-                                anyhow!("Invalid executable file '{}'", &exe_path.display())
+                                anyhow!("Invalid executable file '{}'", &unit.path.display())
                             })?
                             .to_str()
                             .ok_or_else(|| {
-                                anyhow!("Invalid executable file '{}'", &exe_path.display())
+                                anyhow!("Invalid executable file '{}'", &unit.path.display())
                             })?
                             .to_string(),
-                        source: u.pkg.package_id().source_id().url().to_file_path().unwrap(),
+                        source: unit
+                            .unit
+                            .pkg
+                            .package_id()
+                            .source_id()
+                            .url()
+                            .to_file_path()
+                            .unwrap(),
                     })
                 })
                 .collect::<Result<Vec<_>>>()?,
@@ -643,6 +657,7 @@ fn find_all_linked_library_names(
                 "idontcare",
                 root_output,
                 root_output,
+                false,
             )
         })
         .flat_map(|build_output| build_output.map(|it| it.library_links))

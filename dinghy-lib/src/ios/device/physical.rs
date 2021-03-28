@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 
 use crate::{
     ios::{
-        tools::{ios_deploy, libimobiledevice, libimobiledevice::CpuArch},
+        tools::{ios_deploy, ios_deploy::Device as PhysicalDevice},
         xcode,
         IosPlatform,
     },
@@ -23,17 +23,12 @@ use super::utils::*;
 
 #[derive(Clone, Debug)]
 pub struct Physical {
-    id: String,
-    name: String,
-    cpu_arch: CpuArch,
+    device: PhysicalDevice,
 }
 
 impl Physical {
-    pub fn new(id: String) -> Result<Physical> {
-        let cpu_arch = libimobiledevice::device_cpu_arch()?;
-        let name = libimobiledevice::device_name()?;
-
-        Ok(Physical { name, id, cpu_arch })
+    pub fn new(device: PhysicalDevice) -> Physical {
+        Self { device }
     }
 
     fn make_app(
@@ -42,7 +37,7 @@ impl Physical {
         build: &Build,
         runnable: &Runnable,
     ) -> Result<BuildBundle> {
-        let signing = xcode::look_for_signature_settings(&self.id)?
+        let signing = xcode::look_for_signature_settings(&self.device.id)?
             .pop()
             .ok_or_else(|| anyhow!("no signing identity found"))?;
         let app_id = signing
@@ -96,11 +91,11 @@ impl Device for Physical {
     }
 
     fn id(&self) -> &str {
-        &self.id
+        &self.device.id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.device.name
     }
 }
 
@@ -108,7 +103,7 @@ impl Display for Physical {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         fmt.write_fmt(format_args!(
             "Physical {{ \"id\": \"{}\", \"name\": {}, \"arch\": {} }}",
-            self.id, self.name, self.cpu_arch
+            self.device.id, self.device.name, self.device.arch
         ))
     }
 }
@@ -118,7 +113,7 @@ impl DeviceCompatibility for Physical {
         if platform.sim {
             false
         } else {
-            platform.toolchain.rustc_triple == format!("{}-apple-ios", self.cpu_arch)
+            platform.toolchain.rustc_triple == format!("{}-apple-ios", self.device.arch)
         }
     }
 }

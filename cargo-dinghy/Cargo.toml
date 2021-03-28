@@ -13,9 +13,6 @@ categories = [ "development-tools::cargo-plugins", "development-tools::testing" 
 readme = "../README.md"
 edition = "2018"
 
-[badges]
-travis-ci = { repository = "snipsco/dinghy" }
-
 [dependencies]
 dinghy-lib = { path = "../dinghy-lib" }
 error-chain = "0.12"
