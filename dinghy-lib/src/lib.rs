@@ -15,7 +15,7 @@ use crate::{
 mod android;
 mod host;
 #[cfg(target_os = "macos")]
-mod ios;
+pub mod ios;
 mod toolchain;
 
 pub mod compiler;

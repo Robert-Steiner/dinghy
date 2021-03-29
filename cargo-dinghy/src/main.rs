@@ -99,16 +99,6 @@ fn prepare_and_run(
     args: &ArgMatches,
     sub_args: &ArgMatches,
 ) -> Result<()> {
-    use cargo_metadata::{CargoOpt, MetadataCommand};
-
-    let _metadata = MetadataCommand::new()
-        .manifest_path("./Cargo.toml")
-        .features(CargoOpt::AllFeatures)
-        .exec()
-        .unwrap();
-
-    println!("{:?}", _metadata);
-
     debug!("Build for {}", platform);
     let build = build(&platform.clone(), &project, args, sub_args)?;
 

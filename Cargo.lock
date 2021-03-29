@@ -130,15 +130,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81a18687293a1546b67c246452202bbbf143d239cb43494cc163da14979082da"
 
 [[package]]
-name = "camino"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4648c6d00a709aa069a236adcaae4f605a6241c72bf5bee79331a4b625921a9"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "cargo"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -204,7 +195,6 @@ version = "0.4.62-pre"
 dependencies = [
  "anyhow",
  "cargo",
- "cargo_metadata",
  "clap",
  "dinghy-lib",
  "env_logger",
@@ -224,17 +214,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo_metadata"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "081e3f0755c1f380c2d010481b6fa2e02973586d5f2b24eebb7a2a1d98b143d8"
+name = "cargo-tai"
+version = "0.0.1"
 dependencies = [
- "camino",
- "cargo-platform",
- "semver 0.11.0",
- "semver-parser 0.10.2",
- "serde",
- "serde_json",
+ "anyhow",
+ "cargo",
+ "clap",
+ "dinghy-lib",
+ "env_logger",
+ "log",
+ "structopt",
 ]
 
 [[package]]
@@ -244,6 +233,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3c69b077ad434294d3ce9f1f6143a2a4b89a8a2d54ef813d85003a4fd1137fd"
 dependencies = [
  "jobserver",
+]
+
+[[package]]
+name = "cfg-expr"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30aa9e2ffbb838c6b451db14f3cd8e63ed622bf859f9956bc93845a10fafc26a"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]
@@ -408,8 +406,8 @@ name = "dinghy-lib"
 version = "0.4.62-pre"
 dependencies = [
  "anyhow",
- "atty",
  "cargo",
+ "cfg-expr",
  "clap",
  "dinghy-build",
  "dirs",
@@ -422,12 +420,9 @@ dependencies = [
  "regex",
  "semver 0.11.0",
  "serde",
- "serde_derive",
  "serde_json",
- "shell-escape",
  "shellexpand",
  "simctl",
- "structopt",
  "tempdir",
  "tempfile",
  "tinytemplate",
@@ -1316,7 +1311,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
 dependencies = [
  "semver-parser 0.10.2",
- "serde",
 ]
 
 [[package]]
@@ -1410,6 +1404,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "smallvec"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
+
+[[package]]
 name = "socket2"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1461,9 +1461,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.65"
+version = "1.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a1d708c221c5a612956ef9f75b37e454e88d1f7b899fbd3a18d4252012d663"
+checksum = "6498a9efc342871f91cc2d0d694c674368b4ceb40f62b65a7a08c3792935e702"
 dependencies = [
  "proc-macro2",
  "quote",

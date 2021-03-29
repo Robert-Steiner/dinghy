@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "cargo-dinghy",
+    "cargo-tai",
     "dinghy-build",
     "dinghy-lib",
     "dinghy-test",

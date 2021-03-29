@@ -224,9 +224,6 @@ fn create_build_command(
         }
         let compilation = ops::compile(&workspace, &compile_options)?;
 
-
-
-        
         let build = to_build(compilation, &config, build_args, platform)?;
         copy_dependencies_to_target(&build)?;
         Ok(build)

@@ -63,13 +63,6 @@ pub enum CpuArch {
 }
 
 impl CpuArch {
-    pub fn to_string(&self) -> String {
-        match self {
-            CpuArch::Aarch64 => String::from("arm64"),
-            CpuArch::Unsupported(inner) => inner.clone(),
-        }
-    }
-
     pub fn as_str(&self) -> &str {
         match self {
             CpuArch::Aarch64 => "aarch64",

@@ -1,0 +1,22 @@
+[package]
+name = "cargo-tai"
+version = "0.0.1"
+authors = ["Robert Steiner <robertt.debug@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Mobile-testing made easier"
+repository = "https://github.com/snipsco/dinghy"
+keywords = [
+    "test", "mobile", "ios", "android", "cargo"
+]
+categories = [ "development-tools::cargo-plugins", "development-tools::testing" ]
+readme = "../README.md"
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0.40"
+cargo = "0.52.0"
+clap = "2.32"
+dinghy-lib = { path = "../dinghy-lib" }
+env_logger = "0.8.3"
+log = "0.4.14"
+structopt = "0.3.21"
